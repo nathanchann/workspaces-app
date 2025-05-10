@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import useLocation from "../hooks/useLocation";
 
-const API_KEY = "AIzaSyCcsEtKXJ2WnpidAqSDciTqqoEZAFv7H00";
+const API_KEY = "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo";
 
 interface MapProps {
   searchQuery: string;
