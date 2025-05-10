@@ -1,8 +1,8 @@
-import { View, ActivityIndicator } from "react-native";
-import React from "react";
-import { useAuth } from "../../providers/AuthProvider";
+import Home from "@/components/Home";
 import { Redirect } from "expo-router";
-import MapComponent from "../../components/Map";
+import React from "react";
+import { ActivityIndicator, View } from "react-native";
+import { useAuth } from "../../providers/AuthProvider";
 
 export default function Index() {
   const { session, loading } = useAuth();
@@ -12,14 +12,14 @@ export default function Index() {
   }
 
   if (!session) {
-    return <Redirect href={'/(auth)/sign-in'} />;
+    return <Redirect href={"/(auth)/sign-in"} />;
   }
   // if (!session) {
   //   return <Redirect href={'/Profile'} />;
   // }
   return (
     <View style={{ flex: 1 }}>
-      <MapComponent />
+      <Home />
     </View>
   );
 }
