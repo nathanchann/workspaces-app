@@ -1,29 +1,29 @@
+import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { FontAwesome } from "@expo/vector-icons";
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#0891b2",
+        tabBarActiveTintColor: "#fe375c",
         headerShown: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Map",
+          tabBarLabel: "",
           tabBarIcon: ({ color }) => (
-            <FontAwesome name="map" size={24} color={color} />
+            <Feather name="map-pin" size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          tabBarLabel: "",
           tabBarIcon: ({ color }) => (
-            <FontAwesome name="user" size={24} color={color} />
+            <FontAwesome5 name="user-circle" size={24} color={color} />
           ),
         }}
       />

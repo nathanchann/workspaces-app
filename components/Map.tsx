@@ -66,12 +66,9 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                 "store",
                 "playground",
                 "golf_course",
-                "ice_skating_",
                 "sports_club",
                 "stadium",
-                "ice_skating_",
                 "airport",
-                "child_care",
                 "church",
                 "confectionery",
                 "diner",
@@ -81,7 +78,6 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                 "aquarium",
                 "art_gallery",
                 "museum",
-                "theater",
               ],
               maxResultCount: 20,
               locationRestriction: {
@@ -93,7 +89,6 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                   radius: 2500.0,
                 },
               },
-              fields: ["seatingOptions"],
             }),
           }
         );
