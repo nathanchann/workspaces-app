@@ -1,5 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+
 import {
   SafeAreaView,
   StyleSheet,
@@ -26,6 +28,28 @@ const Home = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <GooglePlacesAutocomplete
+        placeholder="Search"
+        onPress={(data, details = null) => {
+          // 'details' is provided when fetchDetails = true
+          console.log(data, details);
+        }}
+        styles={{
+          container: {
+            flex: 0,
+          },
+          textInput: {
+            fontSize: 18,
+          },
+        }}
+        fetchDetails
+        query={{
+          key: "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo",
+          language: "en",
+        }}
+        nearbyPlacesAPI="GooglePlacesSearch"
+        debounce={200}
+      />
       {!showMap ? (
         <View style={styles.searchContainer}>
           <View style={styles.inputRow}>
