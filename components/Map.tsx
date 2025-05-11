@@ -7,6 +7,10 @@ const API_KEY = "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo";
 
 interface MapProps {
   searchQuery: string;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  } | null;
 }
 
 interface Place {
@@ -19,14 +23,16 @@ interface Place {
   };
 }
 
-const Map: React.FC<MapProps> = ({ searchQuery }) => {
+const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
   const [nearbyPlaces, setNearbyPlaces] = useState<Place[]>([]);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const { latitude, longitude, error, loading } = useLocation();
 
   useEffect(() => {
     const fetchNearbyPlaces = async () => {
-      if (!latitude || !longitude) return;
+      const centerLatitude = coordinates?.latitude || latitude;
+      const centerLongitude = coordinates?.longitude || longitude;
+      if (!centerLatitude || !centerLongitude) return;
       setIsLoadingPlaces(true);
       try {
         const response = await fetch(
@@ -45,8 +51,8 @@ const Map: React.FC<MapProps> = ({ searchQuery }) => {
               locationRestriction: {
                 circle: {
                   center: {
-                    latitude: latitude,
-                    longitude: longitude,
+                    latitude: centerLatitude,
+                    longitude: centerLongitude,
                   },
                   radius: 2500.0,
                 },
@@ -67,7 +73,7 @@ const Map: React.FC<MapProps> = ({ searchQuery }) => {
     };
 
     fetchNearbyPlaces();
-  }, [latitude, longitude]);
+  }, [coordinates, latitude, longitude]);
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
@@ -75,9 +81,9 @@ const Map: React.FC<MapProps> = ({ searchQuery }) => {
           <MapView
             provider={PROVIDER_GOOGLE}
             style={StyleSheet.absoluteFillObject}
-            initialRegion={{
-              latitude: latitude,
-              longitude: longitude,
+            region={{
+              latitude: coordinates?.latitude || latitude,
+              longitude: coordinates?.longitude || longitude,
               latitudeDelta: 0.005,
               longitudeDelta: 0.005,
             }}

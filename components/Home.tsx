@@ -13,6 +13,10 @@ import {
 import Map from "./Map";
 
 const Home = () => {
+  const [selectedCoordinates, setSelectedCoordinates] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showMap, setShowMap] = useState(false);
 
@@ -31,8 +35,15 @@ const Home = () => {
       <GooglePlacesAutocomplete
         placeholder="Search"
         onPress={(data, details = null) => {
-          // 'details' is provided when fetchDetails = true
-          console.log(data, details);
+          if (details && details.geometry && details.geometry.location) {
+            const { lat, lng } = details.geometry.location;
+            console.log("Latitude:", lat, "Longitude:", lng);
+            setSearchQuery(data.description); // Save the place name
+            setSelectedCoordinates({ latitude: lat, longitude: lng });
+            setShowMap(true); // Show the map
+          } else {
+            console.error("Details object is missing or incomplete.");
+          }
         }}
         styles={{
           container: {
@@ -46,9 +57,10 @@ const Home = () => {
         query={{
           key: "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo",
           language: "en",
+          components: "country:au",
         }}
         nearbyPlacesAPI="GooglePlacesSearch"
-        debounce={200}
+        debounce={1000}
       />
       {!showMap ? (
         <View style={styles.searchContainer}>
@@ -79,7 +91,7 @@ const Home = () => {
           >
             <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <Map searchQuery={searchQuery} />
+          <Map searchQuery={searchQuery} coordinates={selectedCoordinates} />
         </View>
       )}
     </SafeAreaView>
