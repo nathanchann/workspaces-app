@@ -47,6 +47,17 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
             },
             body: JSON.stringify({
               includedTypes: ["cafe", "library"],
+              excludedTypes: [
+                "gas_station",
+                "amusement_center",
+                "amusement_park",
+                "restaurant",
+                "hotel",
+                "motel",
+                "inn",
+                "hostel",
+                "video_arcade",
+              ],
               maxResultCount: 20,
               locationRestriction: {
                 circle: {
