@@ -91,7 +91,7 @@ const Home = () => {
             style={styles.backButton}
             onPress={() => setShowMap(false)}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+            <MaterialIcons name="arrow-back" size={24} color="#fe375c" />
           </TouchableOpacity>
           <Map searchQuery={searchQuery} coordinates={selectedCoordinates} />
         </View>

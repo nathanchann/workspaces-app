@@ -1,8 +1,8 @@
-import { Alert, Button, StyleSheet, Text, View } from "react-native";
-import React from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
-import { useRouter, Redirect } from "expo-router";
+import { Redirect } from "expo-router";
+import React from "react";
+import { Alert, Button, StyleSheet, Text, View } from "react-native";
 // Changed to capital P for React component naming convention
 const Profile = () => {
   const { session } = useAuth();
