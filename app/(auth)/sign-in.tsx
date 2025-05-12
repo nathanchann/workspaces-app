@@ -1,3 +1,4 @@
+import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Link, Stack } from "expo-router";
 import React, { useState } from "react";
@@ -58,23 +59,24 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
     flex: 1,
+    backgroundColor: Colors.background,
   },
   label: {
-    color: "gray",
+    color: Colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: "gray",
+    borderColor: Colors.text,
     padding: 10,
     marginTop: 5,
     marginBottom: 20,
-    backgroundColor: "white",
-    borderRadius: 5,
+    backgroundColor: Colors.lightGrey,
+    borderRadius: 10,
   },
   textButton: {
     alignSelf: "center",
     fontWeight: "bold",
-    color: "#fe375c",
+    color: Colors.primary,
     marginVertical: 10,
   },
 });

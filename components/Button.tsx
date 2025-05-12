@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Colors from "../constants/Colors";
 
 type ButtonProps = {
   text: string;
@@ -17,7 +18,7 @@ const Button = forwardRef<View | null, ButtonProps>(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fe375c",
+    backgroundColor: Colors.primary,
     padding: 15,
     alignItems: "center",
     borderRadius: 100,
@@ -26,7 +27,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     fontWeight: "600",
-    color: "white",
+    color: Colors.background,
   },
 });
 

@@ -1,3 +1,4 @@
+import Colors from "@/constants/Colors";
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 
@@ -33,7 +34,7 @@ const Home = () => {
     <SafeAreaView style={styles.container}>
       {!showMap ? (
         <View style={styles.contentContainer}>
-          <Text style={styles.title}>Find Workspace</Text>
+          <Text style={styles.title}>Find a Workspace</Text>
           <View style={styles.searchContainer}>
             <View style={styles.searchRow}>
               <View style={styles.searchInputContainer}>
@@ -63,7 +64,7 @@ const Home = () => {
                       height: 48,
                       borderRadius: 8,
                       paddingLeft: 12,
-                      backgroundColor: "#f5f5f5",
+                      backgroundColor: Colors.lightGrey,
                     },
                   }}
                   fetchDetails
@@ -80,7 +81,11 @@ const Home = () => {
                 style={styles.locationButton}
                 onPress={handleGetCurrentLocation}
               >
-                <MaterialIcons name="my-location" size={24} color="#fe375c" />
+                <MaterialIcons
+                  name="my-location"
+                  size={24}
+                  color={Colors.primary}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -91,7 +96,7 @@ const Home = () => {
             style={styles.backButton}
             onPress={() => setShowMap(false)}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#fe375c" />
+            <MaterialIcons name="arrow-back" size={24} color={Colors.primary} />
           </TouchableOpacity>
           <Map searchQuery={searchQuery} coordinates={selectedCoordinates} />
         </View>
@@ -103,7 +108,7 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.background,
   },
   contentContainer: {
     margin: 20,
@@ -113,14 +118,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 20,
-    color: "#fe375c",
+    color: Colors.primary,
     textAlign: "center",
   },
   searchContainer: {
-    backgroundColor: "white",
+    backgroundColor: Colors.background,
     padding: 15,
     borderRadius: 12,
-    shadowColor: "#000",
+    shadowColor: Colors.text,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -139,7 +144,7 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     padding: 12,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: Colors.lightGrey,
     borderRadius: 8,
   },
   inputRow: {
@@ -162,7 +167,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   searchButtonText: {
-    color: "#fff",
+    color: Colors.background,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -175,10 +180,10 @@ const styles = StyleSheet.create({
     top: 20,
     left: 20,
     zIndex: 1,
-    backgroundColor: "white",
+    backgroundColor: Colors.background,
     padding: 8,
     borderRadius: 8,
-    shadowColor: "#000",
+    shadowColor: Colors.text,
     shadowOffset: {
       width: 0,
       height: 2,

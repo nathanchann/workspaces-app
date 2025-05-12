@@ -1,19 +1,24 @@
 import { Stack } from "expo-router";
-import { useAuth } from "../providers/AuthProvider";
-import AuthProvider from "../providers/AuthProvider";
+import AuthProvider, { useAuth } from "../providers/AuthProvider";
 
 export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
+  );
+}
+
+function AuthGate() {
   const { session } = useAuth();
 
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        {!session ? (
-          <Stack.Screen name="(auth)" />
-        ) : (
-          <Stack.Screen name="(tabs)" />
-        )}
-      </Stack>
-    </AuthProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      {!session ? (
+        <Stack.Screen name="(auth)" />
+      ) : (
+        <Stack.Screen name="(tabs)" />
+      )}
+    </Stack>
   );
 }

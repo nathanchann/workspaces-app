@@ -1,3 +1,4 @@
+import Colors from "@/constants/Colors";
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
@@ -5,7 +6,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#fe375c",
+        tabBarActiveTintColor: Colors.primary,
         headerShown: false,
       }}
     >
