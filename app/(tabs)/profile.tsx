@@ -10,6 +10,7 @@ const Profile = () => {
   const { session } = useAuth();
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
+  const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -43,6 +44,11 @@ const Profile = () => {
     fetchProfile();
   }, [session]);
 
+  // If user just signed out, redirect to sign in
+  if (signedOut) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
+
   // If no session, redirect to sign in
   if (!session) {
     return <Redirect href="/(auth)/sign-in" />;
@@ -60,6 +66,8 @@ const Profile = () => {
             if (error) {
               console.error("Sign out error:", error);
               Alert.alert("Error signing out", error.message);
+            } else {
+              setSignedOut(true);
             }
           } catch (error) {
             console.error("Caught error:", error);

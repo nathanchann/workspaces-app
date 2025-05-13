@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { Colors } from "../constants/Colors";
 import useLocation from "../hooks/useLocation";
 
 const API_KEY = "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo";
@@ -121,6 +122,20 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
             }}
             showsUserLocation={true}
           >
+            {/* Center Pin */}
+            {/* <Marker
+              coordinate={{
+                latitude: coordinates?.latitude || latitude,
+                longitude: coordinates?.longitude || longitude,
+              }}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.centerPinContainer}>
+                <View style={styles.centerPin} />
+                <View style={styles.centerPinShadow} />
+              </View>
+            </Marker> */}
+
             {nearbyPlaces.map((place, index) => (
               <Marker
                 key={index}
@@ -128,8 +143,21 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                   latitude: place.location.latitude,
                   longitude: place.location.longitude,
                 }}
-                title={place.displayName.text}
-              />
+                anchor={{ x: 0.5, y: 1 }}
+                flat={true}
+              >
+                <View>
+                  <View style={styles.markerContainer}>
+                    <Text style={styles.markerText}>
+                      {place.displayName.text}
+                    </Text>
+                  </View>
+                  <View style={styles.pinContainer}>
+                    <View style={styles.pin} />
+                    <View style={styles.pinShadow} />
+                  </View>
+                </View>
+              </Marker>
             ))}
           </MapView>
         ) : (
@@ -151,6 +179,63 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
 const styles = StyleSheet.create({
   map: {
     flex: 1,
+  },
+  calloutContainer: {
+    backgroundColor: "white",
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    minWidth: 100,
+  },
+  calloutText: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  markerContainer: {
+    backgroundColor: "white",
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  markerText: {
+    fontSize: 12,
+    textAlign: "center",
+    minWidth: 80,
+  },
+  pinContainer: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pin: {
+    width: 20,
+    height: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    borderWidth: 3,
+    borderColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  pinShadow: {
+    position: "absolute",
+    bottom: 0,
+    width: 10,
+    height: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    borderRadius: 5,
+    transform: [{ scaleX: 2 }],
   },
 });
 

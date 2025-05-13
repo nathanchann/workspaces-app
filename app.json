@@ -9,7 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nathan.workspaces",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to help you find and share nearby workspaces and study spots."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,6 +45,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a2068d3f-1a88-49a4-9820-a2ed990aaf78"
+      }
     }
   }
 }

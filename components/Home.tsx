@@ -89,6 +89,19 @@ const Home = () => {
               </TouchableOpacity>
             </View>
           </View>
+          {/* Share Workspace Section */}
+          <View style={styles.shareContainer}>
+            <Text style={styles.shareTitle}>
+              Share a Workspace or Study Spot
+            </Text>
+            <Text style={styles.shareDescription}>
+              Know a great place to work or study? Share it with the community!
+            </Text>
+            <TouchableOpacity style={styles.shareButton}>
+              <Text style={styles.shareButtonText}>Share a Spot</Text>
+            </TouchableOpacity>
+          </View>
+          {/* End Share Workspace Section */}
         </View>
       ) : (
         <View style={styles.mapContainer}>
@@ -191,6 +204,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  shareContainer: {
+    backgroundColor: Colors.lightGrey,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 24,
+    alignItems: "center",
+    shadowColor: Colors.text,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  shareTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.primary,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  shareDescription: {
+    fontSize: 14,
+    color: Colors.text,
+    marginBottom: 14,
+    textAlign: "center",
+  },
+  shareButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 100,
+  },
+  shareButtonText: {
+    color: Colors.background,
+    fontWeight: "600",
+    fontSize: 16,
   },
 });
 
