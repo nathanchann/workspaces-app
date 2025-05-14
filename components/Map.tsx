@@ -143,8 +143,8 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
           }));
         });
       });
-    }, 16);
-  }, [nearbyPlaces, markerPositions]);
+    }, 8);
+  }, [nearbyPlaces]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -190,8 +190,13 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                           markerPositions[index].x -
                           (overlayWidths[index]
                             ? overlayWidths[index] / 2
-                            : 60),
-                        top: markerPositions[index].y - 60,
+                            : 40),
+                        top: markerPositions[index].y - 45,
+                        zIndex: place.displayName.text
+                          .toLowerCase()
+                          .includes("library")
+                          ? 2
+                          : 1,
                       },
                     ]}
                     onLayout={(event) => {
@@ -202,7 +207,9 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                     <TouchableOpacity
                       onPress={() => Alert.alert(place.displayName.text)}
                     >
-                      <Text>{place.displayName.text}</Text>
+                      <Text numberOfLines={1} style={styles.markerText}>
+                        {place.displayName.text}
+                      </Text>
                     </TouchableOpacity>
                   </Animated.View>
                 )
@@ -241,15 +248,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   testBox: {
-    position: "absolute",
-    top: 100,
-    left: 100,
     backgroundColor: "white",
-    padding: 10,
-    borderRadius: 5,
+    padding: 6,
+    paddingHorizontal: 8,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: "black",
-    zIndex: 1000,
+    borderColor: Colors.primary,
+    maxWidth: 140,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  markerText: {
+    fontSize: 11,
+    color: "#333",
+    textAlign: "center",
   },
   pin: {
     width: 20,
