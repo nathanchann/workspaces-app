@@ -1,6 +1,6 @@
 import Colors from "@/constants/Colors";
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import {
   SafeAreaView,
@@ -11,14 +11,20 @@ import {
 } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Map from "./Map";
+import ShareModal from "./ShareModal";
 
-const Home = () => {
+const Home = ({ initialShowShare = false }) => {
   const [selectedCoordinates, setSelectedCoordinates] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(initialShowShare);
+
+  useEffect(() => {
+    setShowShareModal(initialShowShare);
+  }, [initialShowShare]);
 
   const handleSearch = () => {
     setShowMap(true);
@@ -97,11 +103,18 @@ const Home = () => {
             <Text style={styles.shareDescription}>
               Know a great place to work or study? Share it with the community!
             </Text>
-            <TouchableOpacity style={styles.shareButton}>
-              <Text style={styles.shareButtonText}>Share a Spot</Text>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={() => setShowShareModal(true)}
+            >
+              <Text style={styles.shareButtonText}>Share a Space</Text>
             </TouchableOpacity>
           </View>
           {/* End Share Workspace Section */}
+          <ShareModal
+            visible={showShareModal}
+            onClose={() => setShowShareModal(false)}
+          />
         </View>
       ) : (
         <View style={styles.mapContainer}>

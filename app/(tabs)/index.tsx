@@ -1,11 +1,12 @@
 import Home from "@/components/Home";
-import { Redirect } from "expo-router";
+import { Redirect, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../../providers/AuthProvider";
 
 export default function Index() {
   const { session, loading } = useAuth();
+  const { showShare } = useLocalSearchParams();
 
   if (loading) {
     return <ActivityIndicator />;
@@ -19,7 +20,7 @@ export default function Index() {
   // }
   return (
     <View style={{ flex: 1 }}>
-      <Home />
+      <Home initialShowShare={showShare === "true"} />
     </View>
   );
 }
