@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -29,6 +30,7 @@ interface Place {
     latitude: number;
     longitude: number;
   };
+  types: string[];
 }
 
 interface MarkerPosition {
@@ -63,7 +65,8 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
             headers: {
               "Content-Type": "application/json",
               "X-Goog-Api-Key": API_KEY,
-              "X-Goog-FieldMask": "places.displayName,places.location",
+              "X-Goog-FieldMask":
+                "places.displayName,places.location,places.types",
               "X-iOS-Bundle-Identifier": "com.nathan.workspaces",
             },
             body: JSON.stringify({
@@ -207,9 +210,26 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                     <TouchableOpacity
                       onPress={() => Alert.alert(place.displayName.text)}
                     >
-                      <Text numberOfLines={1} style={styles.markerText}>
-                        {place.displayName.text}
-                      </Text>
+                      <View style={styles.titleContainer}>
+                        <Text numberOfLines={1} style={styles.markerText}>
+                          {place.displayName.text}
+                        </Text>
+                        {place.types?.includes("library") ? (
+                          <Ionicons
+                            name="book-outline"
+                            size={12}
+                            color={Colors.primary}
+                            style={styles.titleIcon}
+                          />
+                        ) : place.types?.includes("cafe") ? (
+                          <Ionicons
+                            name="cafe-outline"
+                            size={12}
+                            color={Colors.primary}
+                            style={styles.titleIcon}
+                          />
+                        ) : null}
+                      </View>
                     </TouchableOpacity>
                   </Animated.View>
                 )
@@ -235,26 +255,12 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  calloutContainer: {
-    backgroundColor: "white",
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    minWidth: 100,
-  },
-  calloutText: {
-    fontSize: 12,
-    textAlign: "center",
-  },
   testBox: {
     backgroundColor: "white",
-    padding: 6,
-    paddingHorizontal: 8,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: Colors.primary,
-    maxWidth: 140,
+    maxWidth: "35%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
@@ -278,6 +284,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 5,
+    paddingHorizontal: 12,
+  },
+  titleIcon: {
+    marginLeft: 4,
   },
 });
 
