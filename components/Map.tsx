@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { AntDesign, Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -228,7 +228,21 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
                             color={Colors.primary}
                             style={styles.titleIcon}
                           />
-                        ) : null}
+                        ) : place.types?.includes("food_court") ? (
+                          <Ionicons
+                            name="restaurant-outline"
+                            size={12}
+                            color={Colors.primary}
+                            style={styles.titleIcon}
+                          />
+                        ) : (
+                          <AntDesign
+                            name="question"
+                            size={12}
+                            color={Colors.primary}
+                            style={styles.titleIcon}
+                          />
+                        )}
                       </View>
                     </TouchableOpacity>
                   </Animated.View>
