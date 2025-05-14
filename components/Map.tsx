@@ -70,7 +70,7 @@ const Map: React.FC<MapProps> = ({ searchQuery, coordinates }) => {
               "X-iOS-Bundle-Identifier": "com.nathan.workspaces",
             },
             body: JSON.stringify({
-              includedTypes: ["cafe", "library"],
+              includedTypes: ["cafe", "library", "food_court"],
               excludedTypes: [
                 "gas_station",
                 "amusement_center",
@@ -260,13 +260,14 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: Colors.primary,
-    maxWidth: "35%",
+    maxWidth: 140,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 3,
   },
+
   markerText: {
     fontSize: 11,
     color: "#333",
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
   },
   titleIcon: {
     marginLeft: 4,
