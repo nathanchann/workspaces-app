@@ -2,6 +2,8 @@ import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
@@ -89,25 +91,16 @@ export default function ShareModal({ visible, onClose }: Props) {
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `images/${fileName}`;
 
-      // Ensure proper file URI format
-      const fileUri = image.startsWith("file://") ? image : `file://${image}`;
-
-      // Handle the blob creation with proper mime type
-      const response = await fetch(fileUri);
-      if (!response.ok) {
-        throw new Error("Failed to fetch image");
-      }
-
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error("Created blob is empty");
-      }
+      // Read the file as base64
+      const base64Data = await FileSystem.readAsStringAsync(image, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
       const { error: uploadError, data } = await supabase.storage
         .from("workspace-images")
-        .upload(filePath, blob, {
+        .upload(filePath, decode(base64Data), {
           contentType: `image/${fileExt}`,
-          upsert: true, // Changed to true to allow overwrites if needed
+          upsert: true,
         });
 
       if (uploadError) {
