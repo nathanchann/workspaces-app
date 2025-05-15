@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import Map from "./Map";
+import NearbyLocations from "./NearbyLocations";
 import ShareModal from "./ShareModal";
 
 const Home = ({ initialShowShare = false }) => {
@@ -110,6 +111,7 @@ const Home = ({ initialShowShare = false }) => {
               <Text style={styles.shareButtonText}>Share a Space</Text>
             </TouchableOpacity>
           </View>
+          <NearbyLocations />
           {/* End Share Workspace Section */}
           <ShareModal
             visible={showShareModal}
