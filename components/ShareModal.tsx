@@ -1,6 +1,21 @@
 import Colors from "@/constants/Colors";
+import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import Slider from "@react-native-community/slider";
+import * as ImagePicker from "expo-image-picker";
+import { useState } from "react";
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
@@ -10,6 +25,151 @@ type Props = {
 
 export default function ShareModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const [name, setName] = useState("");
+  const [type, setType] = useState<"cafe" | "library" | "food_court" | null>(
+    null
+  );
+  const [selectedLocation, setSelectedLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [rating, setRating] = useState(0);
+  const [image, setImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handlePlacesPress = (data: any, details: any = null) => {
+    if (details?.geometry?.location) {
+      console.log("DEBUG: Valid location found:", details.geometry.location);
+      setSelectedLocation(details.geometry.location);
+    } else {
+      console.error("DEBUG: Invalid place data structure");
+      console.error("DEBUG: Data received:", { data, details });
+    }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Sorry, we need camera permissions to make this work!");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async () => {
+    if (!image) return null;
+
+    try {
+      setIsUploading(true);
+
+      const fileExt = image.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `images/${fileName}`;
+
+      // Ensure proper file URI format
+      const fileUri = image.startsWith("file://") ? image : `file://${image}`;
+
+      // Handle the blob creation with proper mime type
+      const response = await fetch(fileUri);
+      if (!response.ok) {
+        throw new Error("Failed to fetch image");
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error("Created blob is empty");
+      }
+
+      const { error: uploadError, data } = await supabase.storage
+        .from("workspace-images")
+        .upload(filePath, blob, {
+          contentType: `image/${fileExt}`,
+          upsert: true, // Changed to true to allow overwrites if needed
+        });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw new Error("Failed to upload to storage");
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("workspace-images").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      Alert.alert("Error", "Failed to upload image. Please try again.");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      Alert.alert("Error", "Please enter a workspace name");
+      return;
+    }
+
+    if (!selectedLocation) {
+      Alert.alert("Error", "Please select a location");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const imageUrl = await uploadImage();
+
+      const insertData = {
+        name,
+        rating,
+        latitude: selectedLocation.lat,
+        longitude: selectedLocation.lng,
+        image_url: imageUrl,
+      };
+
+      const { data, error } = await supabase
+        .from("workspaces")
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      console.log("Workspace added successfully:", data);
+      onClose();
+    } catch (error) {
+      console.error("Error adding workspace:", error);
+      Alert.alert("Error", "Failed to add workspace. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Modal
@@ -29,7 +189,96 @@ export default function ShareModal({ visible, onClose }: Props) {
             <View style={styles.placeholder} />
           </View>
           <View style={[styles.body, { paddingBottom: insets.bottom }]}>
-            <Text style={styles.description}>Share</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Workspace Name"
+              value={name}
+              onChangeText={setName}
+            />
+            <GooglePlacesAutocomplete
+              placeholder="Search for location"
+              onPress={handlePlacesPress}
+              fetchDetails={true}
+              query={{
+                key: "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo",
+                language: "en",
+                components: "country:au",
+              }}
+              enablePoweredByContainer={false}
+              minLength={4}
+              styles={{
+                container: styles.searchContainer,
+                textInput: styles.searchInput,
+                listView: {
+                  position: "absolute",
+                  top: 45,
+                  left: 0,
+                  right: 0,
+                  backgroundColor: "white",
+                  borderRadius: 5,
+                  flex: 1,
+                  elevation: 3,
+                  zIndex: 1000,
+                },
+              }}
+            />
+
+            <View style={styles.ratingContainer}>
+              <Text style={styles.label}>Rating (1-5)</Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={1}
+                maximumValue={5}
+                step={1}
+                value={rating}
+                onValueChange={setRating}
+                minimumTrackTintColor={Colors.primary}
+              />
+              <Text style={styles.ratingText}>{rating}</Text>
+            </View>
+
+            <View style={styles.imageButtons}>
+              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+                <Ionicons name="images" size={24} color={Colors.primary} />
+                <Text style={styles.imageButtonText}>Choose from Library</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
+                <Ionicons name="camera" size={24} color={Colors.primary} />
+                <Text style={styles.imageButtonText}>Take Photo</Text>
+              </TouchableOpacity>
+            </View>
+
+            {image && (
+              <View style={styles.imagePreview}>
+                <Image source={{ uri: image }} style={styles.previewImage} />
+                <TouchableOpacity
+                  style={styles.removeImage}
+                  onPress={() => setImage(null)}
+                >
+                  <Ionicons name="close-circle" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (!name.trim() ||
+                  !selectedLocation ||
+                  isLoading ||
+                  isUploading) &&
+                  styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={
+                !name.trim() || !selectedLocation || isLoading || isUploading
+              }
+            >
+              <Text style={styles.submitButtonText}>
+                {isLoading || isUploading ? "Sharing..." : "Share Workspace"}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -73,5 +322,92 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    padding: 12,
+    marginBottom: 20,
+    borderRadius: 8,
+  },
+  searchContainer: {
+    flex: 0,
+  },
+  searchInput: {
+    height: 48,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  ratingContainer: {
+    marginVertical: 15,
+  },
+  label: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 8,
+  },
+  slider: {
+    height: 40,
+  },
+  ratingText: {
+    textAlign: "center",
+    fontSize: 16,
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  submitButton: {
+    backgroundColor: Colors.primary,
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  submitButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  imageButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 10,
+  },
+  imageButton: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 8,
+    alignItems: "center", // Center everything
+    justifyContent: "center",
+  },
+  imageButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+    marginTop: 8, // Space between icon and text
+    textAlign: "center",
+  },
+  imagePreview: {
+    position: "relative",
+    height: 200,
+    marginBottom: 20,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  removeImage: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 12,
   },
 });
