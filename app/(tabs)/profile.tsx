@@ -6,6 +6,7 @@ import { Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -35,6 +36,53 @@ const Profile = () => {
     null
   );
   const [modalVisible, setModalVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchWorkspaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("workspaces")
+        .select("*")
+        .eq("user_id", session?.user?.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setWorkspaces(data || []);
+    } catch (error) {
+      console.error("Error fetching workspaces:", error);
+    }
+  };
+
+  const handleDelete = async (workspaceId: string) => {
+    Alert.alert(
+      "Delete Workspace",
+      "Are you sure you want to delete this workspace?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsRefreshing(true);
+              const { error } = await supabase
+                .from("workspaces")
+                .delete()
+                .eq("id", workspaceId);
+
+              if (error) throw error;
+              await fetchWorkspaces();
+            } catch (error) {
+              console.error("Error deleting workspace:", error);
+              Alert.alert("Error", "Failed to delete workspace");
+            } finally {
+              setIsRefreshing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     if (!session) {
@@ -170,6 +218,16 @@ const Profile = () => {
                       Rating: {workspace.rating}/5
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(workspace.id)}
+                  >
+                    <MaterialIcons
+                      name="delete"
+                      size={20}
+                      color={Colors.primary}
+                    />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               ))}
             </View>
@@ -275,6 +333,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.border,
+    position: "relative",
   },
   workspaceImage: {
     width: "100%",
@@ -302,6 +361,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.gray,
     textAlign: "center",
+  },
+  deleteButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 15,
+    padding: 6,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
 });
 

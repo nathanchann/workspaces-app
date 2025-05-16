@@ -176,8 +176,8 @@ export default function ShareModal({ visible, onClose }: Props) {
     try {
       const imageUrl = await uploadImage();
 
-      // Insert workspace
-      const { data: workspaceData, error: workspaceError } = await supabase.rpc(
+      // Insert workspace with clearer variable naming
+      const { data: workspaceId, error: workspaceError } = await supabase.rpc(
         "insert_workspace",
         {
           p_name: name,
@@ -192,9 +192,9 @@ export default function ShareModal({ visible, onClose }: Props) {
 
       // Insert initial upvote for the workspace
       const { error: voteError } = await supabase.from("votes").insert({
-        workspace_id: workspaceData.id,
-        vote_type: 1, // upvote
-        tag_id: null, // workspace-level vote
+        workspace_id: workspaceId,
+        vote_type: 1,
+        tag_id: null,
       });
 
       if (voteError) throw voteError;
@@ -202,7 +202,7 @@ export default function ShareModal({ visible, onClose }: Props) {
       // Insert tag votes if tags were selected
       if (selectedTags.length > 0) {
         const tagVotes = selectedTags.map((tagId) => ({
-          workspace_id: workspaceData.id,
+          workspace_id: workspaceId, // Using the clearer variable name
           vote_type: 1,
           tag_id: tagId,
         }));
