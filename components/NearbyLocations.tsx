@@ -91,9 +91,15 @@ const NearbyLocations = () => {
           }}
           style={styles.carouselImage}
         />
-        <Text style={styles.locationName}>{item.name}</Text>
-        <Text style={styles.ratingText}>Rating: {item.rating}/5</Text>
-        <Text style={styles.distanceText}>{formatDistance(distance)}</Text>
+        <View style={styles.cardContent}>
+          <Text style={styles.locationName} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <View style={styles.cardFooter}>
+            <Text style={styles.ratingText}>Rating: {item.rating}/5</Text>
+            <Text style={styles.distanceText}>{formatDistance(distance)}</Text>
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -144,28 +150,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   carouselItem: {
-    width: 150,
+    width: 280, // Increased from 150
     marginRight: 15,
     borderRadius: 12,
     backgroundColor: Colors.lightGrey,
-    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   carouselImage: {
     width: "100%",
-    height: 100,
-    borderRadius: 8,
-    marginBottom: 8,
+    height: 180, // Increased from 100
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  cardContent: {
+    padding: 12,
   },
   locationName: {
-    fontSize: 16,
+    fontSize: 18, // Increased from 16
     fontWeight: "600",
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: 14, // Increased from 12
     color: Colors.primary,
-    marginBottom: 4,
   },
   distanceText: {
     fontSize: 14,

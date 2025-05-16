@@ -224,7 +224,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lightGrey,
     borderRadius: 12,
     padding: 18,
-    marginBottom: 24,
+    marginBottom: 20,
+    marginTop: 30,
     alignItems: "center",
     shadowColor: Colors.text,
     shadowOffset: { width: 0, height: 1 },
@@ -233,10 +234,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   shareTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     color: Colors.primary,
-    marginBottom: 6,
+    marginBottom: 10,
     textAlign: "center",
   },
   shareDescription: {
