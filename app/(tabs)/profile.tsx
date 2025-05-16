@@ -1,47 +1,78 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
-import Button from "../../components/Button";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+type Workspace = {
+  id: string;
+  name: string;
+  image_url: string;
+  rating: number;
+  created_at: string;
+};
 
 const Profile = () => {
   const { session } = useAuth();
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [signedOut, setSignedOut] = useState(false);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
   useEffect(() => {
     if (!session) {
       setLoading(false);
       return;
     }
-    const fetchProfile = async () => {
+    const fetchUserData = async () => {
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", session?.user?.id)
-          .single();
+        const [profileData, workspacesData] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", session?.user?.id)
+            .single(),
+          supabase
+            .from("workspaces")
+            .select("*")
+            .eq("user_id", session?.user?.id)
+            .order("created_at", { ascending: false }),
+        ]);
 
-        if (error) {
-          console.error("Error fetching profile:", error.message);
+        if (profileData.error) {
+          console.error("Error fetching profile:", profileData.error.message);
         } else {
-          setUsername(data?.username);
+          setUsername(profileData.data?.username);
+        }
+
+        if (workspacesData.error) {
+          console.error(
+            "Error fetching workspaces:",
+            workspacesData.error.message
+          );
+        } else {
+          setWorkspaces(workspacesData.data || []);
         }
       } catch (error) {
-        if (error instanceof Error) {
-          console.error("Error:", error.message);
-        } else {
-          console.error("Unexpected error:", error);
-        }
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchUserData();
   }, [session]);
 
   // If user just signed out, redirect to sign in
@@ -54,47 +85,205 @@ const Profile = () => {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      {username && <Text style={styles.title}>Username: {username}!</Text>}
-      <Text style={styles.title}>Profile</Text>
-      <Button
-        text="Sign Out"
-        onPress={async () => {
-          try {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-              console.error("Sign out error:", error);
-              Alert.alert("Error signing out", error.message);
-            } else {
-              setSignedOut(true);
+    <SafeAreaView edges={["top"]} style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={async () => {
+            try {
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                console.error("Sign out error:", error);
+              } else {
+                setSignedOut(true);
+              }
+            } catch (error) {
+              console.error("Error signing out:", error);
             }
-          } catch (error) {
-            console.error("Caught error:", error);
-            Alert.alert(
-              "Network Error",
-              "Please check your internet connection"
-            );
-          }
-        }}
-      />
-    </View>
+          }}
+        >
+          <MaterialIcons name="logout" size={24} color={Colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content}>
+        <View style={styles.profileSection}>
+          <View style={styles.profileInfo}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarText}>
+                {username ? username[0].toUpperCase() : "?"}
+              </Text>
+            </View>
+            <Text style={styles.username}>{username}</Text>
+            <Text style={styles.workspaceCount}>
+              {workspaces.length}{" "}
+              {workspaces.length === 1 ? "workspace" : "workspaces"} shared
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.workspacesContainer}>
+          <Text style={styles.sectionTitle}>Your Shared Workspaces</Text>
+          {workspaces.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                You haven't shared any workspaces yet
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.workspacesGrid}>
+              {workspaces.map((workspace) => (
+                <View key={workspace.id} style={styles.workspaceCard}>
+                  <Image
+                    source={{
+                      uri:
+                        workspace.image_url ||
+                        "https://via.placeholder.com/150",
+                    }}
+                    style={styles.workspaceImage}
+                  />
+                  <View style={styles.workspaceInfo}>
+                    <Text style={styles.workspaceName}>{workspace.name}</Text>
+                    <Text style={styles.workspaceRating}>
+                      Rating: {workspace.rating}/5
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
     backgroundColor: Colors.background,
   },
-  title: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  headerTitle: {
     fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontWeight: "700",
     color: Colors.text,
+  },
+  signOutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  content: {
+    flex: 1,
+  },
+  profileSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  profileInfo: {
+    alignItems: "center",
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "white",
+  },
+  username: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  workspaceCount: {
+    fontSize: 16,
+    color: Colors.primary,
+    marginBottom: 24,
+  },
+  workspacesContainer: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: Colors.primary,
+    marginBottom: 16,
+  },
+  workspacesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  workspaceCard: {
+    width: (Dimensions.get("window").width - 56) / 2,
+    backgroundColor: Colors.light,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  workspaceImage: {
+    width: "100%",
+    height: 120,
+  },
+  workspaceInfo: {
+    padding: 12,
+  },
+  workspaceName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  workspaceRating: {
+    fontSize: 14,
+    color: Colors.gray,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: Colors.gray,
+    textAlign: "center",
   },
 });
 
