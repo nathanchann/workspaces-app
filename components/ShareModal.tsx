@@ -20,6 +20,12 @@ import {
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+type Tag = {
+  id: string;
+  name: string;
+  icon_url?: string;
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -39,6 +45,8 @@ export default function ShareModal({ visible, onClose }: Props) {
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (visible) {
@@ -49,6 +57,8 @@ export default function ShareModal({ visible, onClose }: Props) {
       setImage(null);
       setIsLoading(false);
       setIsUploading(false);
+      setSelectedTags([]);
+      fetchTags();
     }
   }, [visible]);
 
@@ -134,14 +144,31 @@ export default function ShareModal({ visible, onClose }: Props) {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      Alert.alert("Error", "Please enter a workspace name");
-      return;
-    }
+  const fetchTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .order("name");
 
-    if (!selectedLocation) {
-      Alert.alert("Error", "Please select a location");
+      if (error) throw error;
+      setTags(data || []);
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+    }
+  };
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !selectedLocation) {
+      Alert.alert("Error", "Please enter a workspace name and location");
       return;
     }
 
@@ -149,19 +176,44 @@ export default function ShareModal({ visible, onClose }: Props) {
     try {
       const imageUrl = await uploadImage();
 
-      const { data, error } = await supabase.rpc("insert_workspace", {
-        p_name: name,
-        p_rating: rating,
-        p_lat: selectedLocation.lat,
-        p_lng: selectedLocation.lng,
-        p_image_url: imageUrl || "", // Pass empty string if no image was uploaded
+      // Insert workspace
+      const { data: workspaceData, error: workspaceError } = await supabase.rpc(
+        "insert_workspace",
+        {
+          p_name: name,
+          p_rating: rating,
+          p_lat: selectedLocation.lat,
+          p_lng: selectedLocation.lng,
+          p_image_url: imageUrl || "",
+        }
+      );
+
+      if (workspaceError) throw workspaceError;
+
+      // Insert initial upvote for the workspace
+      const { error: voteError } = await supabase.from("votes").insert({
+        workspace_id: workspaceData.id,
+        vote_type: 1, // upvote
+        tag_id: null, // workspace-level vote
       });
 
-      if (error) {
-        throw error;
+      if (voteError) throw voteError;
+
+      // Insert tag votes if tags were selected
+      if (selectedTags.length > 0) {
+        const tagVotes = selectedTags.map((tagId) => ({
+          workspace_id: workspaceData.id,
+          vote_type: 1,
+          tag_id: tagId,
+        }));
+
+        const { error: tagVotesError } = await supabase
+          .from("votes")
+          .insert(tagVotes);
+
+        if (tagVotesError) throw tagVotesError;
       }
 
-      console.log("Workspace added successfully:", data);
       onClose();
     } catch (error) {
       console.error("Error adding workspace:", error);
@@ -237,6 +289,31 @@ export default function ShareModal({ visible, onClose }: Props) {
               <Text style={styles.ratingText}>{rating}</Text>
             </View>
 
+            <View style={styles.tagsContainer}>
+              <Text style={styles.label}>Features (Optional)</Text>
+              <View style={styles.tagsList}>
+                {tags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag.id}
+                    style={[
+                      styles.tagButton,
+                      selectedTags.includes(tag.id) && styles.tagButtonSelected,
+                    ]}
+                    onPress={() => toggleTag(tag.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.tagText,
+                        selectedTags.includes(tag.id) && styles.tagTextSelected,
+                      ]}
+                    >
+                      {tag.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             <View style={styles.imageButtons}>
               <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
                 <Ionicons name="images" size={24} color={Colors.primary} />
@@ -308,7 +385,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 20,
     fontWeight: "600",
-    color: Colors.primary,
+    color: Colors.text, // Changed from primary to text color
     flex: 1,
     textAlign: "center",
   },
@@ -409,5 +486,32 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
+  },
+  tagsContainer: {
+    marginVertical: 15,
+  },
+  tagsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  tagButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: "transparent",
+  },
+  tagButtonSelected: {
+    backgroundColor: Colors.primary,
+  },
+  tagText: {
+    color: Colors.primary,
+    fontSize: 14,
+  },
+  tagTextSelected: {
+    color: Colors.background,
   },
 });

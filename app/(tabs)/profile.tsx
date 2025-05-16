@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: Colors.primary,
+    color: Colors.text,
   },
   signOutButton: {
     padding: 8,

@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 20,
-    color: Colors.primary,
+    color: Colors.primary, // Changed from primary to text color
     textAlign: "center",
   },
   searchContainer: {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   shareTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: Colors.primary,
+    color: Colors.primary, // Changed from primary to text color
     marginBottom: 10,
     textAlign: "center",
   },

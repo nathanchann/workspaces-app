@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 15,
-    color: Colors.primary,
+    color: Colors.primary, // Changed from primary to text color
     paddingHorizontal: 15,
   },
   listContainer: {
