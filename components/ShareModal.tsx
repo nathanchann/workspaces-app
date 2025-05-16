@@ -137,18 +137,13 @@ export default function ShareModal({ visible, onClose }: Props) {
     try {
       const imageUrl = await uploadImage();
 
-      const insertData = {
-        name,
-        rating,
-        latitude: selectedLocation.lat,
-        longitude: selectedLocation.lng,
-        image_url: imageUrl,
-      };
-
-      const { data, error } = await supabase
-        .from("workspaces")
-        .insert(insertData)
-        .select();
+      const { data, error } = await supabase.rpc("insert_workspace", {
+        p_name: name,
+        p_rating: rating,
+        p_lat: selectedLocation.lat,
+        p_lng: selectedLocation.lng,
+        p_image_url: imageUrl || "", // Pass empty string if no image was uploaded
+      });
 
       if (error) {
         throw error;
