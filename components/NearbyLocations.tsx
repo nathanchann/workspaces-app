@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import WorkspaceDetailsModal from "./WorkspaceDetailsModal";
 
 type Workspace = {
   id: string;
@@ -44,6 +45,10 @@ const NearbyLocations = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { latitude, longitude, loading: locationLoading } = useLocation();
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
+    null
+  );
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchNearbyWorkspaces = async () => {
@@ -75,6 +80,11 @@ const NearbyLocations = () => {
       : `${(meters / 1000).toFixed(1)}km`;
   };
 
+  const handleWorkspacePress = (workspace: Workspace) => {
+    setSelectedWorkspace(workspace);
+    setModalVisible(true);
+  };
+
   const renderItem = ({ item }: { item: Workspace }) => {
     const distance = calculateDistance(
       latitude,
@@ -84,7 +94,10 @@ const NearbyLocations = () => {
     );
 
     return (
-      <TouchableOpacity style={styles.carouselItem}>
+      <TouchableOpacity
+        style={styles.carouselItem}
+        onPress={() => handleWorkspacePress(item)}
+      >
         <Image
           source={{
             uri: item.image_url || "https://via.placeholder.com/150",
@@ -130,6 +143,11 @@ const NearbyLocations = () => {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
+      />
+      <WorkspaceDetailsModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        workspace={selectedWorkspace}
       />
     </View>
   );

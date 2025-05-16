@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import WorkspaceDetailsModal from "../../components/WorkspaceDetailsModal";
 
 type Workspace = {
   id: string;
@@ -30,6 +31,10 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [signedOut, setSignedOut] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
+    null
+  );
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -143,7 +148,14 @@ const Profile = () => {
           ) : (
             <View style={styles.workspacesGrid}>
               {workspaces.map((workspace) => (
-                <View key={workspace.id} style={styles.workspaceCard}>
+                <TouchableOpacity
+                  key={workspace.id}
+                  style={styles.workspaceCard}
+                  onPress={() => {
+                    setSelectedWorkspace(workspace);
+                    setModalVisible(true);
+                  }}
+                >
                   <Image
                     source={{
                       uri:
@@ -158,12 +170,18 @@ const Profile = () => {
                       Rating: {workspace.rating}/5
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
         </View>
       </ScrollView>
+
+      <WorkspaceDetailsModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        workspace={selectedWorkspace}
+      />
     </SafeAreaView>
   );
 };
