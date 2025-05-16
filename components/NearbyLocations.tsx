@@ -1,5 +1,7 @@
 import Colors from "@/constants/Colors";
-import React from "react";
+import useLocation from "@/hooks/useLocation";
+import { supabase } from "@/lib/supabase";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -9,60 +11,114 @@ import {
   View,
 } from "react-native";
 
-type Location = {
+type Workspace = {
   id: string;
   name: string;
-  image: string;
-  distance?: string;
+  rating: number;
+  image_url: string;
+  latitude: number;
+  longitude: number;
+};
+
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
 };
 
 const NearbyLocations = () => {
-  const mockLocations: Location[] = [
-    {
-      id: "1",
-      name: "State Library",
-      image: "https://via.placeholder.com/150",
-      distance: "0.5km",
-    },
-    {
-      id: "2",
-      name: "Coffee Club",
-      image: "https://via.placeholder.com/150",
-      distance: "0.8km",
-    },
-    {
-      id: "3",
-      name: "WeWork Space",
-      image: "https://via.placeholder.com/150",
-      distance: "1.2km",
-    },
-    {
-      id: "4",
-      name: "Study Hub",
-      image: "https://via.placeholder.com/150",
-      distance: "1.5km",
-    },
-    {
-      id: "5",
-      name: "University Library",
-      image: "https://via.placeholder.com/150",
-      distance: "2.0km",
-    },
-  ];
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { latitude, longitude, loading: locationLoading } = useLocation();
 
-  const renderItem = ({ item }: { item: Location }) => (
-    <TouchableOpacity style={styles.carouselItem}>
-      <Image source={{ uri: item.image }} style={styles.carouselImage} />
-      <Text style={styles.locationName}>{item.name}</Text>
-      <Text style={styles.distanceText}>{item.distance}</Text>
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+    const fetchNearbyWorkspaces = async () => {
+      if (locationLoading || !latitude || !longitude) return;
+
+      try {
+        const { data, error } = await supabase.rpc("get_nearest_workspaces", {
+          lat: latitude,
+          lng: longitude,
+          max_distance: 10000,
+          limit_count: 15,
+        });
+
+        if (error) throw error;
+        setWorkspaces(data || []);
+      } catch (error) {
+        console.error("Error fetching nearby workspaces:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNearbyWorkspaces();
+  }, [latitude, longitude, locationLoading]);
+
+  const formatDistance = (meters: number) => {
+    return meters < 1000
+      ? `${Math.round(meters)}m`
+      : `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  const renderItem = ({ item }: { item: Workspace }) => {
+    const distance = calculateDistance(
+      latitude,
+      longitude,
+      item.latitude,
+      item.longitude
+    );
+
+    return (
+      <TouchableOpacity style={styles.carouselItem}>
+        <Image
+          source={{
+            uri: item.image_url || "https://via.placeholder.com/150",
+          }}
+          style={styles.carouselImage}
+        />
+        <Text style={styles.locationName}>{item.name}</Text>
+        <Text style={styles.ratingText}>Rating: {item.rating}/5</Text>
+        <Text style={styles.distanceText}>{formatDistance(distance)}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  if (isLoading || locationLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Loading nearby spots...</Text>
+      </View>
+    );
+  }
+
+  if (workspaces.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>No workspaces found nearby</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Nearby Study Spots</Text>
       <FlatList
-        data={mockLocations}
+        data={workspaces}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         horizontal
@@ -104,6 +160,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: Colors.text,
+    marginBottom: 4,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: Colors.primary,
     marginBottom: 4,
   },
   distanceText: {

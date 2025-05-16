@@ -5,7 +5,7 @@ import Slider from "@react-native-community/slider";
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -39,6 +39,18 @@ export default function ShareModal({ visible, onClose }: Props) {
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setName("");
+      setType(null);
+      setSelectedLocation(null);
+      setRating(0);
+      setImage(null);
+      setIsLoading(false);
+      setIsUploading(false);
+    }
+  }, [visible]);
 
   const handlePlacesPress = (data: any, details: any = null) => {
     if (details?.geometry?.location) {
