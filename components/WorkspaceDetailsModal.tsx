@@ -5,6 +5,18 @@ import React, { useEffect, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+type TagVotes = {
+  tag_name: string;
+  upvotes: number;
+  downvotes: number;
+};
+
+type VoteType = 1 | -1 | null;
+
+type UserVotes = {
+  [key: string]: VoteType;
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -23,13 +35,19 @@ export default function WorkspaceDetailsModal({
 }: Props) {
   const [upvotes, setUpvotes] = useState(0);
   const [downvotes, setDownvotes] = useState(0);
+  const [tagVotes, setTagVotes] = useState<TagVotes[]>([]);
+  const [userWorkspaceVote, setUserWorkspaceVote] = useState<VoteType>(null);
+  const [userTagVotes, setUserTagVotes] = useState<UserVotes>({});
+  const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (workspace?.id) {
       fetchVoteCounts();
+      fetchTagVotes();
+      fetchUserVotes(); // Add this call
     }
-  }, [workspace?.id]);
+  }, [visible, workspace?.id]);
 
   const fetchVoteCounts = async () => {
     if (!workspace?.id) return;
@@ -51,6 +69,159 @@ export default function WorkspaceDetailsModal({
       setDownvotes(downvoteData.data || 0);
     } catch (error) {
       console.error("Error fetching vote counts:", error);
+    }
+  };
+
+  const fetchTagVotes = async () => {
+    if (!workspace?.id) return;
+    try {
+      const { data, error } = await supabase.rpc(
+        "get_tag_vote_counts_for_workspace",
+        {
+          p_workspace_id: workspace.id,
+        }
+      );
+      if (error) throw error;
+      setTagVotes(data || []);
+    } catch (error) {
+      console.error("Error fetching tag votes:", error);
+    }
+  };
+
+  const fetchUserVotes = async () => {
+    if (!workspace?.id) return;
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return; // Don't show error on initial load
+    }
+
+    try {
+      const [workspaceVote, tagVotes] = await Promise.all([
+        supabase.rpc("get_user_workspace_vote", {
+          p_workspace_id: workspace.id,
+          p_user_id: session.user.id,
+        }),
+        supabase.rpc("get_user_tag_votes", {
+          p_workspace_id: workspace.id,
+          p_user_id: session.user.id,
+        }),
+      ]);
+
+      if (workspaceVote.error) throw workspaceVote.error;
+      if (tagVotes.error) throw tagVotes.error;
+
+      setUserWorkspaceVote(workspaceVote.data);
+      setUserTagVotes(tagVotes.data || {});
+    } catch (error) {
+      console.error("Error fetching user votes:", error);
+    }
+  };
+
+  const handleWorkspaceVote = async (isUpvote: boolean) => {
+    if (!workspace?.id) return;
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setError("Please sign in to vote");
+      return;
+    }
+
+    const desiredVote: VoteType = isUpvote ? 1 : -1;
+    // If clicking the same vote type, remove the vote. Otherwise, set new vote.
+    const newVoteType: VoteType =
+      userWorkspaceVote === desiredVote ? null : desiredVote;
+
+    // Store previous state for rollback
+    const previousVote = userWorkspaceVote;
+    const previousUpvotes = upvotes;
+    const previousDownvotes = downvotes;
+
+    // Optimistically update UI
+    setUserWorkspaceVote(newVoteType);
+    if (previousVote === 1) setUpvotes((prev) => prev - 1);
+    if (previousVote === -1) setDownvotes((prev) => prev - 1);
+    if (newVoteType === 1) setUpvotes((prev) => prev + 1);
+    if (newVoteType === -1) setDownvotes((prev) => prev + 1);
+
+    try {
+      const { error } = await supabase.rpc("set_workspace_vote", {
+        p_workspace_id: workspace.id,
+        p_user_id: session.user.id,
+        p_vote_type: newVoteType,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      // Revert optimistic updates on error
+      setUserWorkspaceVote(previousVote);
+      setUpvotes(previousUpvotes);
+      setDownvotes(previousDownvotes);
+      console.error("Error voting for workspace:", error);
+    }
+  };
+
+  const handleTagVote = async (tagName: string, isUpvote: boolean) => {
+    if (!workspace?.id) return;
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setError("Please sign in to vote");
+      return;
+    }
+
+    const desiredVote: VoteType = isUpvote ? 1 : -1;
+    const currentVote = userTagVotes[tagName];
+    const newVoteType: VoteType =
+      currentVote === desiredVote ? null : desiredVote;
+
+    // Store previous states
+    const previousTagVotes = [...tagVotes];
+    const previousUserTagVotes = { ...userTagVotes };
+
+    // Optimistically update UI
+    setUserTagVotes((prev) => ({
+      ...prev,
+      [tagName]: newVoteType,
+    }));
+
+    // Update tag vote counts optimistically
+    setTagVotes((prev) =>
+      prev.map((tag) => {
+        if (tag.tag_name !== tagName) return tag;
+
+        let updatedTag = { ...tag };
+        // Remove previous vote if it exists
+        if (currentVote === 1) updatedTag.upvotes--;
+        if (currentVote === -1) updatedTag.downvotes--;
+        // Add new vote if applicable
+        if (newVoteType === 1) updatedTag.upvotes++;
+        if (newVoteType === -1) updatedTag.downvotes++;
+
+        return updatedTag;
+      })
+    );
+
+    try {
+      const { error } = await supabase.rpc("set_tag_vote", {
+        p_workspace_id: workspace.id,
+        p_user_id: session.user.id,
+        p_tag_name: tagName,
+        p_vote_type: newVoteType,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      // Revert optimistic updates on error
+      setTagVotes(previousTagVotes);
+      setUserTagVotes(previousUserTagVotes);
+      console.error("Error voting for tag:", error);
     }
   };
 
@@ -94,24 +265,91 @@ export default function WorkspaceDetailsModal({
                 </View>
 
                 <View style={styles.votesContainer}>
-                  <View style={styles.voteItem}>
+                  <Pressable
+                    style={[
+                      styles.voteItem,
+                      userWorkspaceVote === 1 && styles.activeVote,
+                    ]}
+                    onPress={() => handleWorkspaceVote(true)}
+                  >
                     <Ionicons
                       name="arrow-up-circle"
                       size={20}
-                      color={Colors.primary}
+                      color={
+                        userWorkspaceVote === 1 ? Colors.primary : Colors.gray
+                      }
                     />
                     <Text style={styles.voteCount}>{upvotes}</Text>
-                  </View>
-                  <View style={styles.voteItem}>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.voteItem,
+                      userWorkspaceVote === -1 && styles.activeVote,
+                    ]}
+                    onPress={() => handleWorkspaceVote(false)}
+                  >
                     <Ionicons
                       name="arrow-down-circle"
                       size={20}
-                      color={Colors.gray}
+                      color={
+                        userWorkspaceVote === -1 ? Colors.primary : Colors.gray
+                      }
                     />
                     <Text style={styles.voteCount}>{downvotes}</Text>
-                  </View>
+                  </Pressable>
                 </View>
               </View>
+
+              {tagVotes.length > 0 && (
+                <View style={styles.tagVotesSection}>
+                  <Text style={styles.sectionTitle}>Tags</Text>
+                  {tagVotes.map((tag) => (
+                    <View key={tag.tag_name} style={styles.tagVoteRow}>
+                      <Text style={styles.tagName}>{tag.tag_name}</Text>
+                      <View style={styles.votesContainer}>
+                        <Pressable
+                          style={[
+                            styles.voteItem,
+                            userTagVotes[tag.tag_name] === 1 &&
+                              styles.activeVote,
+                          ]}
+                          onPress={() => handleTagVote(tag.tag_name, true)}
+                        >
+                          <Ionicons
+                            name="arrow-up-circle"
+                            size={16}
+                            color={
+                              userTagVotes[tag.tag_name] === 1
+                                ? Colors.primary
+                                : Colors.gray
+                            }
+                          />
+                          <Text style={styles.voteCount}>{tag.upvotes}</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[
+                            styles.voteItem,
+                            userTagVotes[tag.tag_name] === -1 &&
+                              styles.activeVote,
+                          ]}
+                          onPress={() => handleTagVote(tag.tag_name, false)}
+                        >
+                          <Ionicons
+                            name="arrow-down-circle"
+                            size={16}
+                            color={
+                              userTagVotes[tag.tag_name] === -1
+                                ? Colors.primary
+                                : Colors.gray
+                            }
+                          />
+                          <Text style={styles.voteCount}>{tag.downvotes}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -201,10 +439,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    padding: 4, // Add padding for better touch target
+  },
+  activeVote: {
+    // Add styles for active vote state if needed
   },
   voteCount: {
     fontSize: 16,
     color: Colors.text,
     fontWeight: "500",
+  },
+  tagVotesSection: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  tagVoteRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  tagName: {
+    fontSize: 16,
+    color: Colors.text,
   },
 });
