@@ -1,7 +1,6 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
@@ -13,7 +12,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -33,13 +31,13 @@ type Props = {
 
 export default function ShareModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const [name, setName] = useState("");
   const [type, setType] = useState<"cafe" | "library" | "food_court" | null>(
     null
   );
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
     lng: number;
+    name?: string;
   } | null>(null);
   const [rating, setRating] = useState(0);
   const [image, setImage] = useState<string | null>(null);
@@ -50,7 +48,6 @@ export default function ShareModal({ visible, onClose }: Props) {
 
   useEffect(() => {
     if (visible) {
-      setName("");
       setType(null);
       setSelectedLocation(null);
       setRating(0);
@@ -65,7 +62,11 @@ export default function ShareModal({ visible, onClose }: Props) {
   const handlePlacesPress = (data: any, details: any = null) => {
     if (details?.geometry?.location) {
       console.log("DEBUG: Valid location found:", details.geometry.location);
-      setSelectedLocation(details.geometry.location);
+      setSelectedLocation({
+        lat: details.geometry.location.lat,
+        lng: details.geometry.location.lng,
+        name: data.description, // Store the location name
+      });
     } else {
       console.error("DEBUG: Invalid place data structure");
       console.error("DEBUG: Data received:", { data, details });
@@ -149,6 +150,7 @@ export default function ShareModal({ visible, onClose }: Props) {
       const { data, error } = await supabase
         .from("tags")
         .select("*")
+        .neq("id", "00000000-0000-0000-0000-000000000001")
         .order("name");
 
       if (error) throw error;
@@ -167,20 +169,25 @@ export default function ShareModal({ visible, onClose }: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !selectedLocation) {
-      Alert.alert("Error", "Please enter a workspace name and location");
+    if (!selectedLocation) {
+      Alert.alert("Error", "Please select a location");
       return;
     }
 
     setIsLoading(true);
     try {
       const imageUrl = await uploadImage();
+      const workspaceName = selectedLocation.name
+        ? selectedLocation.name.split(",")[0].trim()
+        : `Workspace at ${selectedLocation.lat.toFixed(
+            6
+          )}, ${selectedLocation.lng.toFixed(6)}`;
 
       // Insert workspace with clearer variable naming
       const { data: workspaceId, error: workspaceError } = await supabase.rpc(
         "insert_workspace",
         {
-          p_name: name,
+          p_name: workspaceName,
           p_rating: rating,
           p_lat: selectedLocation.lat,
           p_lng: selectedLocation.lng,
@@ -223,6 +230,26 @@ export default function ShareModal({ visible, onClose }: Props) {
     }
   };
 
+  const renderStars = () => {
+    return (
+      <View style={styles.starsContainer}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <TouchableOpacity
+            key={star}
+            onPress={() => setRating(star)}
+            style={styles.starButton}
+          >
+            <Ionicons
+              name={rating >= star ? "star" : "star-outline"}
+              size={28} // Reduced from 32
+              color={Colors.primary}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <Modal
       animationType="slide"
@@ -241,12 +268,6 @@ export default function ShareModal({ visible, onClose }: Props) {
             <View style={styles.placeholder} />
           </View>
           <View style={[styles.body, { paddingBottom: insets.bottom }]}>
-            <TextInput
-              style={styles.input}
-              placeholder="Workspace Name"
-              value={name}
-              onChangeText={setName}
-            />
             <GooglePlacesAutocomplete
               placeholder="Search for location"
               onPress={handlePlacesPress}
@@ -276,17 +297,8 @@ export default function ShareModal({ visible, onClose }: Props) {
             />
 
             <View style={styles.ratingContainer}>
-              <Text style={styles.label}>Rating (1-5)</Text>
-              <Slider
-                style={styles.slider}
-                minimumValue={1}
-                maximumValue={5}
-                step={1}
-                value={rating}
-                onValueChange={setRating}
-                minimumTrackTintColor={Colors.primary}
-              />
-              <Text style={styles.ratingText}>{rating}</Text>
+              <Text style={styles.label}>Rating</Text>
+              {renderStars()}
             </View>
 
             <View style={styles.tagsContainer}>
@@ -341,16 +353,11 @@ export default function ShareModal({ visible, onClose }: Props) {
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                (!name.trim() ||
-                  !selectedLocation ||
-                  isLoading ||
-                  isUploading) &&
+                (!selectedLocation || isLoading || isUploading) &&
                   styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={
-                !name.trim() || !selectedLocation || isLoading || isUploading
-              }
+              disabled={!selectedLocation || isLoading || isUploading}
             >
               <Text style={styles.submitButtonText}>
                 {isLoading || isUploading ? "Sharing..." : "Share Workspace"}
@@ -364,6 +371,12 @@ export default function ShareModal({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
+  label: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: Colors.text,
+    marginBottom: 6,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",
@@ -400,13 +413,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 12,
-    marginBottom: 20,
-    borderRadius: 8,
-  },
   searchContainer: {
     flex: 0,
   },
@@ -418,20 +424,43 @@ const styles = StyleSheet.create({
   },
   ratingContainer: {
     marginVertical: 15,
+    alignItems: "flex-start", // Changed from center
   },
-  label: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 8,
+  starsContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-start", // Changed from center
+    padding: 10,
+    paddingLeft: 0, // Added to align with label
   },
-  slider: {
-    height: 40,
+  starButton: {
+    padding: 3, // Reduced from 5
   },
-  ratingText: {
-    textAlign: "center",
-    fontSize: 16,
+  tagsContainer: {
+    marginVertical: 15,
+  },
+  tagsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  tagButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: "transparent",
+  },
+  tagButtonSelected: {
+    backgroundColor: Colors.primary,
+  },
+  tagText: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontSize: 14,
+  },
+  tagTextSelected: {
+    color: Colors.background,
   },
   submitButton: {
     backgroundColor: Colors.primary,
@@ -486,32 +515,5 @@ const styles = StyleSheet.create({
     right: 8,
     backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
-  },
-  tagsContainer: {
-    marginVertical: 15,
-  },
-  tagsList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 8,
-  },
-  tagButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: "transparent",
-  },
-  tagButtonSelected: {
-    backgroundColor: Colors.primary,
-  },
-  tagText: {
-    color: Colors.primary,
-    fontSize: 14,
-  },
-  tagTextSelected: {
-    color: Colors.background,
   },
 });

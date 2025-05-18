@@ -75,14 +75,34 @@ export default function WorkspaceDetailsModal({
   const fetchTagVotes = async () => {
     if (!workspace?.id) return;
     try {
-      const { data, error } = await supabase.rpc(
+      // Get all tags first
+      const { data: allTags, error: tagsError } = await supabase
+        .from("tags")
+        .select("*")
+        .order("name");
+
+      if (tagsError) throw tagsError;
+
+      // Get the vote counts
+      const { data: voteData, error: votesError } = await supabase.rpc(
         "get_tag_vote_counts_for_workspace",
         {
           p_workspace_id: workspace.id,
         }
       );
-      if (error) throw error;
-      setTagVotes(data || []);
+
+      if (votesError) throw votesError;
+
+      // Merge tags with vote data, defaulting to 0 votes if no votes exist
+      const mergedTagVotes = (allTags || []).map((tag) => ({
+        tag_name: tag.name,
+        upvotes:
+          voteData?.find((v: any) => v.tag_name === tag.name)?.upvotes || 0,
+        downvotes:
+          voteData?.find((v: any) => v.tag_name === tag.name)?.downvotes || 0,
+      }));
+
+      setTagVotes(mergedTagVotes);
     } catch (error) {
       console.error("Error fetching tag votes:", error);
     }
@@ -176,12 +196,19 @@ export default function WorkspaceDetailsModal({
       return;
     }
 
-    const desiredVote: VoteType = isUpvote ? 1 : -1;
     const currentVote = userTagVotes[tagName];
-    const newVoteType: VoteType =
-      currentVote === desiredVote ? null : desiredVote;
+    // If clicking the same vote type, remove the vote
+    // If clicking different vote type, switch the vote
+    let newVoteType: VoteType = null;
+    if (currentVote === (isUpvote ? 1 : -1)) {
+      // Removing vote
+      newVoteType = null;
+    } else {
+      // Setting new vote
+      newVoteType = isUpvote ? 1 : -1;
+    }
 
-    // Store previous states
+    // Store previous states for rollback
     const previousTagVotes = [...tagVotes];
     const previousUserTagVotes = { ...userTagVotes };
 
@@ -300,56 +327,60 @@ export default function WorkspaceDetailsModal({
                 </View>
               </View>
 
-              {tagVotes.length > 0 && (
-                <View style={styles.tagVotesSection}>
-                  <Text style={styles.sectionTitle}>Tags</Text>
-                  {tagVotes.map((tag) => (
-                    <View key={tag.tag_name} style={styles.tagVoteRow}>
-                      <Text style={styles.tagName}>{tag.tag_name}</Text>
-                      <View style={styles.votesContainer}>
-                        <Pressable
-                          style={[
-                            styles.voteItem,
-                            userTagVotes[tag.tag_name] === 1 &&
-                              styles.activeVote,
-                          ]}
-                          onPress={() => handleTagVote(tag.tag_name, true)}
-                        >
-                          <Ionicons
-                            name="arrow-up-circle"
-                            size={16}
-                            color={
-                              userTagVotes[tag.tag_name] === 1
-                                ? Colors.primary
-                                : Colors.gray
-                            }
-                          />
-                          <Text style={styles.voteCount}>{tag.upvotes}</Text>
-                        </Pressable>
-                        <Pressable
-                          style={[
-                            styles.voteItem,
-                            userTagVotes[tag.tag_name] === -1 &&
-                              styles.activeVote,
-                          ]}
-                          onPress={() => handleTagVote(tag.tag_name, false)}
-                        >
-                          <Ionicons
-                            name="arrow-down-circle"
-                            size={16}
-                            color={
-                              userTagVotes[tag.tag_name] === -1
-                                ? Colors.primary
-                                : Colors.gray
-                            }
-                          />
-                          <Text style={styles.voteCount}>{tag.downvotes}</Text>
-                        </Pressable>
-                      </View>
+              {/* Replace the tagVotes section with this */}
+              <View style={styles.tagVotesSection}>
+                <Text style={styles.sectionTitle}>Tags</Text>
+                {tagVotes.map((tag) => (
+                  <View key={tag.tag_name} style={styles.tagVoteRow}>
+                    <Text style={styles.tagName}>{tag.tag_name}</Text>
+                    <View style={styles.votesContainer}>
+                      <Pressable
+                        style={[
+                          styles.voteItem,
+                          userTagVotes[tag.tag_name] === 1 && styles.activeVote,
+                        ]}
+                        onPress={() => handleTagVote(tag.tag_name, true)}
+                        disabled={userTagVotes[tag.tag_name] === -1}
+                      >
+                        <Ionicons
+                          name="arrow-up-circle"
+                          size={16}
+                          color={
+                            userTagVotes[tag.tag_name] === -1
+                              ? Colors.gray
+                              : userTagVotes[tag.tag_name] === 1
+                              ? Colors.primary
+                              : Colors.gray
+                          }
+                        />
+                        <Text style={styles.voteCount}>{tag.upvotes}</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.voteItem,
+                          userTagVotes[tag.tag_name] === -1 &&
+                            styles.activeVote,
+                        ]}
+                        onPress={() => handleTagVote(tag.tag_name, false)}
+                        disabled={userTagVotes[tag.tag_name] === 1}
+                      >
+                        <Ionicons
+                          name="arrow-down-circle"
+                          size={16}
+                          color={
+                            userTagVotes[tag.tag_name] === 1
+                              ? Colors.gray
+                              : userTagVotes[tag.tag_name] === -1
+                              ? Colors.primary
+                              : Colors.gray
+                          }
+                        />
+                        <Text style={styles.voteCount}>{tag.downvotes}</Text>
+                      </Pressable>
                     </View>
-                  ))}
-                </View>
-              )}
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
         </View>
