@@ -33,44 +33,17 @@ export default function WorkspaceDetailsModal({
   onClose,
   workspace,
 }: Props) {
-  const [upvotes, setUpvotes] = useState(0);
-  const [downvotes, setDownvotes] = useState(0);
   const [tagVotes, setTagVotes] = useState<TagVotes[]>([]);
-  const [userWorkspaceVote, setUserWorkspaceVote] = useState<VoteType>(null);
   const [userTagVotes, setUserTagVotes] = useState<UserVotes>({});
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (workspace?.id) {
-      fetchVoteCounts();
       fetchTagVotes();
       fetchUserVotes(); // Add this call
     }
   }, [visible, workspace?.id]);
-
-  const fetchVoteCounts = async () => {
-    if (!workspace?.id) return;
-
-    try {
-      const [upvoteData, downvoteData] = await Promise.all([
-        supabase.rpc("get_upvote_count_for_workspace", {
-          p_workspace_id: workspace.id, // Changed from workspace_id to p_workspace_id
-        }),
-        supabase.rpc("get_downvote_count_for_workspace", {
-          p_workspace_id: workspace.id, // Changed from workspace_id to p_workspace_id
-        }),
-      ]);
-
-      if (upvoteData.error) throw upvoteData.error;
-      if (downvoteData.error) throw downvoteData.error;
-
-      setUpvotes(upvoteData.data || 0);
-      setDownvotes(downvoteData.data || 0);
-    } catch (error) {
-      console.error("Error fetching vote counts:", error);
-    }
-  };
 
   const fetchTagVotes = async () => {
     if (!workspace?.id) return;
@@ -119,69 +92,18 @@ export default function WorkspaceDetailsModal({
     }
 
     try {
-      const [workspaceVote, tagVotes] = await Promise.all([
-        supabase.rpc("get_user_workspace_vote", {
+      const { data: tagVotes, error } = await supabase.rpc(
+        "get_user_tag_votes",
+        {
           p_workspace_id: workspace.id,
           p_user_id: session.user.id,
-        }),
-        supabase.rpc("get_user_tag_votes", {
-          p_workspace_id: workspace.id,
-          p_user_id: session.user.id,
-        }),
-      ]);
-
-      if (workspaceVote.error) throw workspaceVote.error;
-      if (tagVotes.error) throw tagVotes.error;
-
-      setUserWorkspaceVote(workspaceVote.data);
-      setUserTagVotes(tagVotes.data || {});
-    } catch (error) {
-      console.error("Error fetching user votes:", error);
-    }
-  };
-
-  const handleWorkspaceVote = async (isUpvote: boolean) => {
-    if (!workspace?.id) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.user) {
-      setError("Please sign in to vote");
-      return;
-    }
-
-    const desiredVote: VoteType = isUpvote ? 1 : -1;
-    // If clicking the same vote type, remove the vote. Otherwise, set new vote.
-    const newVoteType: VoteType =
-      userWorkspaceVote === desiredVote ? null : desiredVote;
-
-    // Store previous state for rollback
-    const previousVote = userWorkspaceVote;
-    const previousUpvotes = upvotes;
-    const previousDownvotes = downvotes;
-
-    // Optimistically update UI
-    setUserWorkspaceVote(newVoteType);
-    if (previousVote === 1) setUpvotes((prev) => prev - 1);
-    if (previousVote === -1) setDownvotes((prev) => prev - 1);
-    if (newVoteType === 1) setUpvotes((prev) => prev + 1);
-    if (newVoteType === -1) setDownvotes((prev) => prev + 1);
-
-    try {
-      const { error } = await supabase.rpc("set_workspace_vote", {
-        p_workspace_id: workspace.id,
-        p_user_id: session.user.id,
-        p_vote_type: newVoteType,
-      });
+        }
+      );
 
       if (error) throw error;
+      setUserTagVotes(tagVotes || {});
     } catch (error) {
-      // Revert optimistic updates on error
-      setUserWorkspaceVote(previousVote);
-      setUpvotes(previousUpvotes);
-      setDownvotes(previousDownvotes);
-      console.error("Error voting for workspace:", error);
+      console.error("Error fetching user votes:", error);
     }
   };
 
@@ -290,44 +212,8 @@ export default function WorkspaceDetailsModal({
                   <Ionicons name="star" size={20} color={Colors.primary} />
                   <Text style={styles.rating}>{workspace.rating}/5</Text>
                 </View>
-
-                <View style={styles.votesContainer}>
-                  <Pressable
-                    style={[
-                      styles.voteItem,
-                      userWorkspaceVote === 1 && styles.activeVote,
-                    ]}
-                    onPress={() => handleWorkspaceVote(true)}
-                  >
-                    <Ionicons
-                      name="arrow-up-circle"
-                      size={20}
-                      color={
-                        userWorkspaceVote === 1 ? Colors.primary : Colors.gray
-                      }
-                    />
-                    <Text style={styles.voteCount}>{upvotes}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.voteItem,
-                      userWorkspaceVote === -1 && styles.activeVote,
-                    ]}
-                    onPress={() => handleWorkspaceVote(false)}
-                  >
-                    <Ionicons
-                      name="arrow-down-circle"
-                      size={20}
-                      color={
-                        userWorkspaceVote === -1 ? Colors.primary : Colors.gray
-                      }
-                    />
-                    <Text style={styles.voteCount}>{downvotes}</Text>
-                  </Pressable>
-                </View>
               </View>
 
-              {/* Replace the tagVotes section with this */}
               <View style={styles.tagVotesSection}>
                 <Text style={styles.sectionTitle}>Tags</Text>
                 {tagVotes.map((tag) => (
@@ -449,7 +335,6 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     marginTop: 12,
   },
@@ -461,24 +346,6 @@ const styles = StyleSheet.create({
   rating: {
     fontSize: 16,
     color: Colors.text,
-  },
-  votesContainer: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  voteItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    padding: 4, // Add padding for better touch target
-  },
-  activeVote: {
-    // Add styles for active vote state if needed
-  },
-  voteCount: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: "500",
   },
   tagVotesSection: {
     marginTop: 24,
@@ -501,5 +368,23 @@ const styles = StyleSheet.create({
   tagName: {
     fontSize: 16,
     color: Colors.text,
+  },
+  votesContainer: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  voteItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    padding: 4, // Add padding for better touch target
+  },
+  activeVote: {
+    // Add styles for active vote state if needed
+  },
+  voteCount: {
+    fontSize: 16,
+    color: Colors.text,
+    fontWeight: "500",
   },
 });
