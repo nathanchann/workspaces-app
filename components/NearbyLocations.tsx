@@ -42,6 +42,25 @@ const NearbyLocations = () => {
   );
   const [modalVisible, setModalVisible] = useState(false);
 
+  const fetchWorkspaceRatings = async (workspaces: Workspace[]) => {
+    const ratingPromises = workspaces.map((workspace) =>
+      supabase.rpc("get_average_rating", {
+        p_workspace_id: workspace.id,
+      })
+    );
+
+    try {
+      const ratings = await Promise.all(ratingPromises);
+      return workspaces.map((workspace, index) => ({
+        ...workspace,
+        rating: ratings[index].data || null,
+      }));
+    } catch (error) {
+      console.error("Error fetching ratings:", error);
+      return workspaces;
+    }
+  };
+
   useEffect(() => {
     const fetchNearbyWorkspaces = async () => {
       if (locationLoading || !latitude || !longitude) return;
@@ -55,8 +74,10 @@ const NearbyLocations = () => {
         });
 
         if (error) throw error;
-        console.log("Fetched nearest workspaces:", data);
-        setWorkspaces(data || []);
+
+        // Fetch ratings for all workspaces
+        const workspacesWithRatings = await fetchWorkspaceRatings(data || []);
+        setWorkspaces(workspacesWithRatings);
       } catch (error) {
         console.error("Error fetching nearby workspaces:", error);
       } finally {
@@ -76,6 +97,22 @@ const NearbyLocations = () => {
   const handleWorkspacePress = (workspace: Workspace) => {
     setSelectedWorkspace(workspace);
     setModalVisible(true);
+  };
+
+  const refreshWorkspaceRating = async (workspace: Workspace) => {
+    try {
+      const { data: avgRating } = await supabase.rpc("get_average_rating", {
+        p_workspace_id: workspace.id,
+      });
+
+      setWorkspaces((prev) =>
+        prev.map((w) =>
+          w.id === workspace.id ? { ...w, rating: avgRating } : w
+        )
+      );
+    } catch (error) {
+      console.error("Error fetching average rating:", error);
+    }
   };
 
   const renderItem = ({ item }: { item: Workspace }) => {
@@ -141,6 +178,9 @@ const NearbyLocations = () => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         workspace={selectedWorkspace}
+        onRatingChange={() =>
+          selectedWorkspace && refreshWorkspaceRating(selectedWorkspace)
+        }
       />
     </View>
   );

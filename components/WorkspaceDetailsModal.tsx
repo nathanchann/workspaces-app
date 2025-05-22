@@ -30,22 +30,53 @@ type Props = {
 export default function WorkspaceDetailsModal({
   visible,
   onClose,
-  workspace,
+  workspace: initialWorkspace,
   onRatingChange,
 }: Props) {
   const { session } = useAuth();
+  const [workspace, setWorkspace] = useState<Workspace | null>(
+    initialWorkspace
+  );
   const [tagVotes, setTagVotes] = useState<TagVotes[]>([]);
   const [userTagVotes, setUserTagVotes] = useState<UserVotes>({});
   const [error, setError] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
 
+  // Update workspace when initialWorkspace changes
+  useEffect(() => {
+    setWorkspace(initialWorkspace);
+  }, [initialWorkspace]);
+
   useEffect(() => {
     if (workspace?.id) {
       fetchTagVotes();
-      fetchUserVotes(); // Add this call
+      fetchUserVotes();
+      fetchCurrentRating();
     }
   }, [visible, workspace?.id]);
+
+  const fetchCurrentRating = async () => {
+    if (!workspace?.id) return;
+    try {
+      const { data: avgRating } = await supabase.rpc("get_average_rating", {
+        p_workspace_id: workspace.id,
+      });
+
+      if (avgRating !== null) {
+        setWorkspace((prev) =>
+          prev
+            ? {
+                ...prev,
+                rating: avgRating,
+              }
+            : null
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching rating:", error);
+    }
+  };
 
   const fetchTagVotes = async () => {
     if (!workspace?.id) return;
@@ -102,26 +133,42 @@ export default function WorkspaceDetailsModal({
     }
   };
 
-  const handleRate = async (rating: number) => {
+  const updateWorkspaceRatings = async (workspaceId: string) => {
     try {
-      // Set the rating
+      const [avgRating, ratingCount] = await Promise.all([
+        supabase.rpc("get_average_rating", { p_workspace_id: workspaceId }),
+        supabase.rpc("get_rating_count", { p_workspace_id: workspaceId }),
+      ]);
+
+      setWorkspace((prev) =>
+        prev
+          ? {
+              ...prev,
+              rating: avgRating.data || null,
+              rating_count: ratingCount.data || null,
+            }
+          : null
+      );
+    } catch (error) {
+      console.error("Error updating ratings:", error);
+    }
+  };
+
+  const handleRate = async (rating: number) => {
+    if (!workspace?.id) return;
+
+    try {
       const { error: ratingError } = await supabase.rpc("set_rating", {
         p_user_id: session!.user.id, // Use non-null assertion
-        p_workspace_id: workspace!.id,
+        p_workspace_id: workspace.id,
         p_rating: rating,
       });
 
       if (ratingError) throw ratingError;
 
-      // Get updated average rating
-      const { data: averageRating, error: avgError } = await supabase.rpc(
-        "get_average_rating",
-        { p_workspace_id: workspace!.id }
-      );
-
-      if (avgError) throw avgError;
-
       setUserRating(rating);
+      await updateWorkspaceRatings(workspace.id);
+
       // Trigger refresh of workspace data
       if (onRatingChange) {
         onRatingChange();

@@ -31,16 +31,30 @@ const Profile = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspacesWithRatings = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: workspaces, error } = await supabase
         .from("workspaces")
         .select("*")
         .eq("user_id", session?.user?.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setWorkspaces(data || []);
+
+      // Fetch ratings for each workspace
+      const workspacesWithRatings = await Promise.all(
+        (workspaces || []).map(async (workspace) => {
+          const { data: avgRating } = await supabase.rpc("get_average_rating", {
+            p_workspace_id: workspace.id,
+          });
+          return {
+            ...workspace,
+            rating: avgRating || 0,
+          };
+        })
+      );
+
+      setWorkspaces(workspacesWithRatings);
     } catch (error) {
       console.error("Error fetching workspaces:", error);
     }
@@ -64,7 +78,7 @@ const Profile = () => {
                 .eq("id", workspaceId);
 
               if (error) throw error;
-              await fetchWorkspaces();
+              await fetchWorkspacesWithRatings();
             } catch (error) {
               console.error("Error deleting workspace:", error);
               Alert.alert("Error", "Failed to delete workspace");
@@ -77,6 +91,22 @@ const Profile = () => {
     );
   };
 
+  const refreshWorkspaceRating = async (workspace: Workspace) => {
+    try {
+      const { data: avgRating } = await supabase.rpc("get_average_rating", {
+        p_workspace_id: workspace.id,
+      });
+
+      setWorkspaces((prev) =>
+        prev.map((w) =>
+          w.id === workspace.id ? { ...w, rating: avgRating } : w
+        )
+      );
+    } catch (error) {
+      console.error("Error fetching average rating:", error);
+    }
+  };
+
   useEffect(() => {
     if (!session) {
       setLoading(false);
@@ -84,33 +114,19 @@ const Profile = () => {
     }
     const fetchUserData = async () => {
       try {
-        const [profileData, workspacesData] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", session?.user?.id)
-            .single(),
-          supabase
-            .from("workspaces")
-            .select("*")
-            .eq("user_id", session?.user?.id)
-            .order("created_at", { ascending: false }),
-        ]);
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", session?.user?.id)
+          .single();
 
-        if (profileData.error) {
-          console.error("Error fetching profile:", profileData.error.message);
+        if (profileError) {
+          console.error("Error fetching profile:", profileError.message);
         } else {
-          setUsername(profileData.data?.username);
+          setUsername(profileData?.username);
         }
 
-        if (workspacesData.error) {
-          console.error(
-            "Error fetching workspaces:",
-            workspacesData.error.message
-          );
-        } else {
-          setWorkspaces(workspacesData.data || []);
-        }
+        await fetchWorkspacesWithRatings();
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -232,6 +248,9 @@ const Profile = () => {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         workspace={selectedWorkspace}
+        onRatingChange={() =>
+          selectedWorkspace && refreshWorkspaceRating(selectedWorkspace)
+        }
       />
     </SafeAreaView>
   );
