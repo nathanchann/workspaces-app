@@ -1,9 +1,12 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/providers/AuthProvider";
+import { Workspace } from "@/types/Workspace";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import StarRating from "./StarRating";
 
 type TagVotes = {
   tag_name: string;
@@ -20,22 +23,21 @@ type UserVotes = {
 type Props = {
   visible: boolean;
   onClose: () => void;
-  workspace: {
-    id: string; // Add id to the type
-    name: string;
-    image_url: string;
-    rating: number;
-  } | null;
+  workspace: Workspace | null;
+  onRatingChange?: () => void; // Add this prop
 };
 
 export default function WorkspaceDetailsModal({
   visible,
   onClose,
   workspace,
+  onRatingChange,
 }: Props) {
+  const { session } = useAuth();
   const [tagVotes, setTagVotes] = useState<TagVotes[]>([]);
   const [userTagVotes, setUserTagVotes] = useState<UserVotes>({});
   const [error, setError] = useState<string | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -82,14 +84,7 @@ export default function WorkspaceDetailsModal({
   };
 
   const fetchUserVotes = async () => {
-    if (!workspace?.id) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.user) {
-      return; // Don't show error on initial load
-    }
+    if (!workspace?.id || !session?.user) return;
 
     try {
       const { data: tagVotes, error } = await supabase.rpc(
@@ -107,16 +102,38 @@ export default function WorkspaceDetailsModal({
     }
   };
 
+  const handleRate = async (rating: number) => {
+    try {
+      // Set the rating
+      const { error: ratingError } = await supabase.rpc("set_rating", {
+        p_user_id: session!.user.id, // Use non-null assertion
+        p_workspace_id: workspace!.id,
+        p_rating: rating,
+      });
+
+      if (ratingError) throw ratingError;
+
+      // Get updated average rating
+      const { data: averageRating, error: avgError } = await supabase.rpc(
+        "get_average_rating",
+        { p_workspace_id: workspace!.id }
+      );
+
+      if (avgError) throw avgError;
+
+      setUserRating(rating);
+      // Trigger refresh of workspace data
+      if (onRatingChange) {
+        onRatingChange();
+      }
+    } catch (error) {
+      console.error("Error setting rating:", error);
+      setError("Failed to submit rating");
+    }
+  };
+
   const handleTagVote = async (tagName: string, isUpvote: boolean) => {
     if (!workspace?.id) return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session?.user) {
-      setError("Please sign in to vote");
-      return;
-    }
 
     const currentVote = userTagVotes[tagName];
     // If clicking the same vote type, remove the vote
@@ -160,7 +177,7 @@ export default function WorkspaceDetailsModal({
     try {
       const { error } = await supabase.rpc("set_tag_vote", {
         p_workspace_id: workspace.id,
-        p_user_id: session.user.id,
+        p_user_id: session!.user.id, // Use non-null assertion
         p_tag_name: tagName,
         p_vote_type: newVoteType,
       });
@@ -209,8 +226,18 @@ export default function WorkspaceDetailsModal({
 
               <View style={styles.statsRow}>
                 <View style={styles.ratingContainer}>
-                  <Ionicons name="star" size={20} color={Colors.primary} />
-                  <Text style={styles.rating}>{workspace.rating}/5</Text>
+                  <Text style={styles.rating}>
+                    {workspace.rating?.toFixed(1) ?? "No ratings"}
+                  </Text>
+                  <StarRating
+                    rating={workspace.rating ?? 0}
+                    size={18}
+                    onPress={handleRate}
+                    userRating={userRating}
+                  />
+                  <Text style={styles.reviewCount}>
+                    ({workspace.rating_count ?? 0})
+                  </Text>
                 </View>
               </View>
 
@@ -341,11 +368,16 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
   },
   rating: {
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: "600",
     color: Colors.text,
+  },
+  reviewCount: {
+    fontSize: 14,
+    color: Colors.gray,
   },
   tagVotesSection: {
     marginTop: 24,

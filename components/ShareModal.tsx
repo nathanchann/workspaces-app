@@ -1,5 +1,6 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/providers/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system";
@@ -31,6 +32,7 @@ type Props = {
 
 export default function ShareModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const [type, setType] = useState<"cafe" | "library" | "food_court" | null>(
     null
   );
@@ -183,12 +185,11 @@ export default function ShareModal({ visible, onClose }: Props) {
             6
           )}, ${selectedLocation.lng.toFixed(6)}`;
 
-      // Insert workspace with clearer variable naming
+      // Insert workspace without rating
       const { data: workspaceId, error: workspaceError } = await supabase.rpc(
         "insert_workspace",
         {
           p_name: workspaceName,
-          p_rating: rating,
           p_lat: selectedLocation.lat,
           p_lng: selectedLocation.lng,
           p_image_url: imageUrl || "",
@@ -197,19 +198,21 @@ export default function ShareModal({ visible, onClose }: Props) {
 
       if (workspaceError) throw workspaceError;
 
-      // Insert initial upvote for the workspace
-      const { error: voteError } = await supabase.from("votes").insert({
-        workspace_id: workspaceId,
-        vote_type: 1,
-        tag_id: null,
-      });
+      // Set initial rating if user provided one
+      if (rating > 0) {
+        const { error: ratingError } = await supabase.rpc("set_rating", {
+          p_user_id: session!.user.id,
+          p_workspace_id: workspaceId,
+          p_rating: rating,
+        });
 
-      if (voteError) throw voteError;
+        if (ratingError) throw ratingError;
+      }
 
       // Insert tag votes if tags were selected
       if (selectedTags.length > 0) {
         const tagVotes = selectedTags.map((tagId) => ({
-          workspace_id: workspaceId, // Using the clearer variable name
+          workspace_id: workspaceId,
           vote_type: 1,
           tag_id: tagId,
         }));

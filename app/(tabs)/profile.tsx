@@ -1,6 +1,7 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
+import { Workspace } from "@/types/Workspace";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -17,14 +18,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WorkspaceDetailsModal from "../../components/WorkspaceDetailsModal";
-
-type Workspace = {
-  id: string;
-  name: string;
-  image_url: string;
-  rating: number;
-  created_at: string;
-};
 
 const Profile = () => {
   const { session } = useAuth();

@@ -1,6 +1,7 @@
 import Colors from "@/constants/Colors";
 import useLocation from "@/hooks/useLocation";
 import { supabase } from "@/lib/supabase";
+import { Workspace } from "@/types/Workspace";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
@@ -11,15 +12,6 @@ import {
   View,
 } from "react-native";
 import WorkspaceDetailsModal from "./WorkspaceDetailsModal";
-
-type Workspace = {
-  id: string;
-  name: string;
-  rating: number;
-  image_url: string;
-  latitude: number;
-  longitude: number;
-};
 
 const calculateDistance = (
   lat1: number,
@@ -58,11 +50,12 @@ const NearbyLocations = () => {
         const { data, error } = await supabase.rpc("get_nearest_workspaces", {
           lat: latitude,
           lng: longitude,
-          max_distance: 10000,
+          max_distance: 100000,
           limit_count: 15,
         });
 
         if (error) throw error;
+        console.log("Fetched nearest workspaces:", data);
         setWorkspaces(data || []);
       } catch (error) {
         console.error("Error fetching nearby workspaces:", error);
