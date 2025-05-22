@@ -59,22 +59,29 @@ export default function WorkspaceDetailsModal({
   const fetchCurrentRating = async () => {
     if (!workspace?.id) return;
     try {
-      const { data: avgRating } = await supabase.rpc("get_average_rating", {
-        p_workspace_id: workspace.id,
-      });
+      // Fetch both rating and count in parallel
+      const [ratingResponse, countResponse] = await Promise.all([
+        supabase.rpc("get_average_rating", {
+          p_workspace_id: workspace.id,
+        }),
+        supabase.rpc("get_rating_count", {
+          p_workspace_id: workspace.id,
+        }),
+      ]);
 
-      if (avgRating !== null) {
+      if (ratingResponse.data !== null && countResponse.data !== null) {
         setWorkspace((prev) =>
           prev
             ? {
                 ...prev,
-                rating: avgRating,
+                rating: ratingResponse.data,
+                rating_count: countResponse.data,
               }
             : null
         );
       }
     } catch (error) {
-      console.error("Error fetching rating:", error);
+      console.error("Error fetching ratings:", error);
     }
   };
 

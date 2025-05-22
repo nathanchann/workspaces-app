@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import RatingDisplay from "./RatingDisplay";
 import WorkspaceDetailsModal from "./WorkspaceDetailsModal";
 
 const calculateDistance = (
@@ -139,7 +140,7 @@ const NearbyLocations = () => {
             {item.name}
           </Text>
           <View style={styles.cardFooter}>
-            <Text style={styles.ratingText}>Rating: {item.rating}/5</Text>
+            <RatingDisplay rating={item.rating} showCount={false} />
             <Text style={styles.distanceText}>{formatDistance(distance)}</Text>
           </View>
         </View>

@@ -1,3 +1,4 @@
+import RatingDisplay from "@/components/RatingDisplay";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
@@ -223,9 +224,10 @@ const Profile = () => {
                   />
                   <View style={styles.workspaceInfo}>
                     <Text style={styles.workspaceName}>{workspace.name}</Text>
-                    <Text style={styles.workspaceRating}>
-                      Rating: {workspace.rating}/5
-                    </Text>
+                    <RatingDisplay
+                      rating={workspace.rating}
+                      showCount={false}
+                    />
                   </View>
                   <TouchableOpacity
                     style={styles.deleteButton}
@@ -359,10 +361,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: Colors.text,
     marginBottom: 4,
-  },
-  workspaceRating: {
-    fontSize: 14,
-    color: Colors.gray,
   },
   emptyState: {
     padding: 40,
