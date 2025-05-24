@@ -9,6 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -396,6 +397,12 @@ export default function WorkspaceDetailsModal({
     }
   };
 
+  const handleOpenMaps = () => {
+    if (!workspace?.latitude || !workspace?.longitude) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${workspace.latitude},${workspace.longitude}`;
+    Linking.openURL(url);
+  };
+
   if (!workspace) return null;
 
   return (
@@ -476,6 +483,21 @@ export default function WorkspaceDetailsModal({
                     ({workspace.rating_count ?? 0})
                   </Text>
                 </View>
+
+                {workspace.latitude && workspace.longitude && (
+                  <Pressable
+                    style={styles.mapButton}
+                    onPress={handleOpenMaps}
+                    android_ripple={{ color: Colors.primary }}
+                  >
+                    <Ionicons
+                      name="map-outline"
+                      size={20}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.mapButtonText}>Open in Maps</Text>
+                  </Pressable>
+                )}
               </View>
 
               <View style={styles.tagVotesSection}>
@@ -616,6 +638,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginTop: 12,
   },
   ratingContainer: {
@@ -693,6 +716,20 @@ const styles = StyleSheet.create({
   addImageText: {
     color: Colors.background,
     fontSize: 16,
+    fontWeight: "600",
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryLight,
+  },
+  mapButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
     fontWeight: "600",
   },
 });
