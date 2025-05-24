@@ -185,18 +185,31 @@ export default function ShareModal({ visible, onClose }: Props) {
             6
           )}, ${selectedLocation.lng.toFixed(6)}`;
 
-      // Insert workspace without rating
+      // Insert workspace without image_url
       const { data: workspaceId, error: workspaceError } = await supabase.rpc(
         "insert_workspace",
         {
           p_name: workspaceName,
           p_lat: selectedLocation.lat,
           p_lng: selectedLocation.lng,
-          p_image_url: imageUrl || "",
         }
       );
 
       if (workspaceError) throw workspaceError;
+
+      // Add image if one was uploaded
+      if (imageUrl) {
+        const { error: imageError } = await supabase.rpc(
+          "add_workspace_image",
+          {
+            p_workspace_id: workspaceId,
+            p_user_id: session!.user.id,
+            p_image_url: imageUrl,
+          }
+        );
+
+        if (imageError) throw imageError;
+      }
 
       // Set initial rating if user provided one
       if (rating > 0) {

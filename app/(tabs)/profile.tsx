@@ -2,7 +2,7 @@ import RatingDisplay from "@/components/RatingDisplay";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
-import { Workspace } from "@/types/Workspace";
+import { Workspace, WorkspaceImage } from "@/types/Workspace";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -31,6 +31,22 @@ const Profile = () => {
   );
   const [modalVisible, setModalVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [workspaceImages, setWorkspaceImages] = useState<{
+    [key: string]: WorkspaceImage[];
+  }>({});
+
+  const fetchWorkspaceImages = async (workspaceId: string) => {
+    try {
+      const { data, error } = await supabase.rpc("get_workspace_images", {
+        p_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error("Error fetching workspace images:", error);
+      return [];
+    }
+  };
 
   const fetchWorkspacesWithRatings = async () => {
     try {
@@ -42,20 +58,29 @@ const Profile = () => {
 
       if (error) throw error;
 
-      // Fetch ratings for each workspace
-      const workspacesWithRatings = await Promise.all(
+      // Fetch ratings and images for each workspace
+      const workspacesWithData = await Promise.all(
         (workspaces || []).map(async (workspace) => {
-          const { data: avgRating } = await supabase.rpc("get_average_rating", {
-            p_workspace_id: workspace.id,
-          });
+          const [avgRating, images] = await Promise.all([
+            supabase.rpc("get_average_rating", {
+              p_workspace_id: workspace.id,
+            }),
+            fetchWorkspaceImages(workspace.id),
+          ]);
+
+          setWorkspaceImages((prev) => ({
+            ...prev,
+            [workspace.id]: images,
+          }));
+
           return {
             ...workspace,
-            rating: avgRating || 0,
+            rating: avgRating.data || 0,
           };
         })
       );
 
-      setWorkspaces(workspacesWithRatings);
+      setWorkspaces(workspacesWithData);
     } catch (error) {
       console.error("Error fetching workspaces:", error);
     }
@@ -217,10 +242,13 @@ const Profile = () => {
                   <Image
                     source={{
                       uri:
-                        workspace.image_url ||
+                        workspaceImages[workspace.id]?.[0]?.image_url?.trim() ||
                         "https://via.placeholder.com/150",
                     }}
                     style={styles.workspaceImage}
+                    onError={(error) => {
+                      console.warn("Image loading error:", error.nativeEvent);
+                    }}
                   />
                   <View style={styles.workspaceInfo}>
                     <Text style={styles.workspaceName}>{workspace.name}</Text>
