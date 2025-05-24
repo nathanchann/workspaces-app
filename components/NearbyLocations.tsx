@@ -1,7 +1,7 @@
 import Colors from "@/constants/Colors";
 import useLocation from "@/hooks/useLocation";
 import { supabase } from "@/lib/supabase";
-import { Workspace } from "@/types/Workspace";
+import { Workspace, WorkspaceImage } from "@/types/Workspace";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
@@ -42,23 +42,20 @@ const NearbyLocations = () => {
     null
   );
   const [modalVisible, setModalVisible] = useState(false);
+  const [workspaceImages, setWorkspaceImages] = useState<{
+    [key: string]: WorkspaceImage[];
+  }>({});
 
-  const fetchWorkspaceRatings = async (workspaces: Workspace[]) => {
-    const ratingPromises = workspaces.map((workspace) =>
-      supabase.rpc("get_average_rating", {
-        p_workspace_id: workspace.id,
-      })
-    );
-
+  const fetchWorkspaceImages = async (workspaceId: string) => {
     try {
-      const ratings = await Promise.all(ratingPromises);
-      return workspaces.map((workspace, index) => ({
-        ...workspace,
-        rating: ratings[index].data || null,
-      }));
+      const { data, error } = await supabase.rpc("get_workspace_images", {
+        p_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      return data || [];
     } catch (error) {
-      console.error("Error fetching ratings:", error);
-      return workspaces;
+      console.error("Error fetching workspace images:", error);
+      return [];
     }
   };
 
@@ -76,9 +73,29 @@ const NearbyLocations = () => {
 
         if (error) throw error;
 
-        // Fetch ratings for all workspaces
-        const workspacesWithRatings = await fetchWorkspaceRatings(data || []);
-        setWorkspaces(workspacesWithRatings);
+        // Fetch ratings and images for workspaces
+        const workspacesWithData = await Promise.all(
+          (data || []).map(async (workspace: Workspace) => {
+            const [avgRating, images] = await Promise.all([
+              supabase.rpc("get_average_rating", {
+                p_workspace_id: workspace.id,
+              }),
+              fetchWorkspaceImages(workspace.id),
+            ]);
+
+            setWorkspaceImages((prev) => ({
+              ...prev,
+              [workspace.id]: images,
+            }));
+
+            return {
+              ...workspace,
+              rating: avgRating.data || null,
+            };
+          })
+        );
+
+        setWorkspaces(workspacesWithData);
       } catch (error) {
         console.error("Error fetching nearby workspaces:", error);
       } finally {
@@ -131,9 +148,14 @@ const NearbyLocations = () => {
       >
         <Image
           source={{
-            uri: item.image_url || "https://via.placeholder.com/150",
+            uri:
+              workspaceImages[item.id]?.[0]?.image_url?.trim() ||
+              "https://via.placeholder.com/150",
           }}
           style={styles.carouselImage}
+          onError={(error) => {
+            console.warn("Image loading error:", error.nativeEvent);
+          }}
         />
         <View style={styles.cardContent}>
           <Text style={styles.locationName} numberOfLines={2}>

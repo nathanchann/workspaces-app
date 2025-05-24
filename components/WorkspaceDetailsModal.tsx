@@ -1,10 +1,25 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
-import { Workspace } from "@/types/Workspace";
+import { Workspace, WorkspaceImage } from "@/types/Workspace";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StarRating from "./StarRating";
 
@@ -41,7 +56,42 @@ export default function WorkspaceDetailsModal({
   const [userTagVotes, setUserTagVotes] = useState<UserVotes>({});
   const [error, setError] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<number | null>(null);
+  const [images, setImages] = useState<WorkspaceImage[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const insets = useSafeAreaInsets();
+
+  const translateX = useSharedValue(0);
+  const context = useSharedValue({ x: 0 });
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      context.value = { x: translateX.value };
+    })
+    .onUpdate((event) => {
+      translateX.value = event.translationX + context.value.x;
+    })
+    .onEnd((event) => {
+      const shouldSwipe =
+        Math.abs(event.velocityX) > 500 || Math.abs(translateX.value) > 100;
+
+      if (shouldSwipe) {
+        const direction = event.velocityX > 0 ? -1 : 1;
+        const newIndex = selectedImageIndex + direction;
+
+        if (newIndex >= 0 && newIndex < images.length) {
+          runOnJS(setSelectedImageIndex)(newIndex);
+          translateX.value = withSpring(0);
+        } else {
+          translateX.value = withSpring(0);
+        }
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const rStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   // Update workspace when initialWorkspace changes
   useEffect(() => {
@@ -53,6 +103,7 @@ export default function WorkspaceDetailsModal({
       fetchTagVotes();
       fetchUserVotes();
       fetchCurrentRating();
+      fetchImages();
     }
   }, [visible, workspace?.id]);
 
@@ -137,6 +188,19 @@ export default function WorkspaceDetailsModal({
       setUserTagVotes(tagVotes || {});
     } catch (error) {
       console.error("Error fetching user votes:", error);
+    }
+  };
+
+  const fetchImages = async () => {
+    if (!workspace?.id) return;
+    try {
+      const { data, error } = await supabase.rpc("get_workspace_images", {
+        p_workspace_id: workspace.id,
+      });
+      if (error) throw error;
+      setImages(data || []);
+    } catch (error) {
+      console.error("Error fetching images:", error);
     }
   };
 
@@ -245,6 +309,20 @@ export default function WorkspaceDetailsModal({
     }
   };
 
+  const handleRemoveImage = async (imageId: string) => {
+    if (!session?.user) return;
+    try {
+      const { error } = await supabase.rpc("remove_workspace_image", {
+        p_image_id: imageId,
+        p_user_id: session.user.id,
+      });
+      if (error) throw error;
+      await fetchImages();
+    } catch (error) {
+      console.error("Error removing image:", error);
+    }
+  };
+
   if (!workspace) return null;
 
   return (
@@ -265,14 +343,38 @@ export default function WorkspaceDetailsModal({
             <View style={styles.placeholder} />
           </View>
 
-          <View style={styles.content}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.imageContainer}>
-              <Image
-                source={{
-                  uri: workspace.image_url || "https://via.placeholder.com/150",
-                }}
-                style={styles.image}
-              />
+              <GestureDetector gesture={panGesture}>
+                <Animated.View style={[styles.imageWrapper, rStyle]}>
+                  <Image
+                    source={{
+                      uri:
+                        images[selectedImageIndex]?.image_url?.trim() ||
+                        "https://via.placeholder.com/150",
+                    }}
+                    style={styles.image}
+                  />
+                </Animated.View>
+              </GestureDetector>
+
+              {images.length > 1 && (
+                <View style={styles.pagination}>
+                  {images.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.paginationDot,
+                        selectedImageIndex === index &&
+                          styles.paginationDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
 
             <View style={styles.detailsContainer}>
@@ -349,7 +451,7 @@ export default function WorkspaceDetailsModal({
                 ))}
               </View>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -387,23 +489,39 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: "100%",
-    height: 250,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    height: 300,
     backgroundColor: Colors.background,
+    overflow: "hidden",
+    position: "relative",
+  },
+  imageWrapper: {
+    width: "100%",
+    height: "100%",
   },
   image: {
     width: "100%",
     height: "100%",
-    borderRadius: 16,
+    resizeMode: "cover",
+  },
+  pagination: {
+    position: "absolute",
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.border,
+  },
+  paginationDotActive: {
+    backgroundColor: Colors.primary,
+    width: 24,
   },
   detailsContainer: {
     padding: 16,
