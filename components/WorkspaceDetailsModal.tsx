@@ -2,7 +2,8 @@ import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { Workspace, WorkspaceImage } from "@/types/Workspace";
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
   Image,
@@ -139,7 +140,6 @@ export default function WorkspaceDetailsModal({
   const fetchTagVotes = async () => {
     if (!workspace?.id) return;
     try {
-      // Get all tags first
       const { data: allTags, error: tagsError } = await supabase
         .from("tags")
         .select("*")
@@ -323,6 +323,63 @@ export default function WorkspaceDetailsModal({
     }
   };
 
+  const handleAddImage = async () => {
+    if (!session?.user || !workspace?.id) return;
+
+    // Request permission to access the media library
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      console.log("Permission to access media library was denied");
+      return;
+    }
+
+    // Launch the image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    try {
+      // Upload the selected image to Supabase Storage
+      // Read the file as a Blob
+      const response = await fetch(result.assets[0].uri);
+      const blob = await response.blob();
+
+      const { data, error: uploadError } = await supabase.storage
+        .from("workspaces")
+        .upload(`public/${workspace.id}/${Date.now()}.jpg`, blob, {
+          contentType: "image/jpeg",
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL of the uploaded image
+      const imageUrl = `https://your-supabase-url.supabase.co/storage/v1/object/public/workspaces/${data.path}`;
+
+      // Add the image URL to the workspace in the database
+      const { error: dbError } = await supabase.rpc("add_workspace_image", {
+        p_workspace_id: workspace.id,
+        p_image_url: imageUrl,
+        p_user_id: session.user.id,
+      });
+
+      if (dbError) throw dbError;
+
+      // Refresh the images
+      await fetchImages();
+    } catch (error) {
+      console.error("Error adding image:", error);
+    }
+  };
+
   if (!workspace) return null;
 
   return (
@@ -360,6 +417,14 @@ export default function WorkspaceDetailsModal({
                   />
                 </Animated.View>
               </GestureDetector>
+
+              <Pressable
+                style={styles.addImageButton}
+                onPress={handleAddImage}
+                android_ripple={{ color: Colors.primary }}
+              >
+                <FontAwesome name="plus" size={16} color={Colors.background} />
+              </Pressable>
 
               {images.length > 1 && (
                 <View style={styles.pagination}>
@@ -590,5 +655,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     fontWeight: "500",
+  },
+  addImageButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: Colors.primary,
+    padding: 12,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  addImageText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
