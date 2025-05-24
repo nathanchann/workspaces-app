@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { Workspace, WorkspaceImage } from "@/types/Workspace";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
@@ -339,8 +341,8 @@ export default function WorkspaceDetailsModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
+      aspect: [16, 9],
+      quality: 0.7,
     });
 
     if (result.canceled) {
@@ -348,32 +350,46 @@ export default function WorkspaceDetailsModal({
     }
 
     try {
-      // Upload the selected image to Supabase Storage
-      // Read the file as a Blob
-      const response = await fetch(result.assets[0].uri);
-      const blob = await response.blob();
+      const fileExt = result.assets[0].uri.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `images/${fileName}`;
 
-      const { data, error: uploadError } = await supabase.storage
-        .from("workspaces")
-        .upload(`public/${workspace.id}/${Date.now()}.jpg`, blob, {
-          contentType: "image/jpeg",
+      // Read the file as base64
+      const base64Data = await FileSystem.readAsStringAsync(
+        result.assets[0].uri,
+        {
+          encoding: FileSystem.EncodingType.Base64,
+        }
+      );
+
+      const { error: uploadError } = await supabase.storage
+        .from("workspace-images")
+        .upload(filePath, decode(base64Data), {
+          contentType: `image/${fileExt}`,
+          upsert: true,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
 
-      // Get the public URL of the uploaded image
-      const imageUrl = `https://your-supabase-url.supabase.co/storage/v1/object/public/workspaces/${data.path}`;
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("workspace-images").getPublicUrl(filePath);
 
-      // Add the image URL to the workspace in the database
+      // Add image to workspace
       const { error: dbError } = await supabase.rpc("add_workspace_image", {
         p_workspace_id: workspace.id,
-        p_image_url: imageUrl,
+        p_image_url: publicUrl,
         p_user_id: session.user.id,
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("Database error:", dbError);
+        throw dbError;
+      }
 
-      // Refresh the images
       await fetchImages();
     } catch (error) {
       console.error("Error adding image:", error);
