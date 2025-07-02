@@ -12,7 +12,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Colors } from "../constants/Colors";
 import useLocation from "../hooks/useLocation";
 
-const API_KEY = "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo";
+const API_KEY = "";
 
 interface MapProps {
   searchQuery: string;
