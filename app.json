@@ -15,9 +15,6 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "This app uses your location to help you find and share nearby workspaces and study spots."
       },
-      "config": {
-        "googleMapsApiKey": "AIzaSyCvA0q3zv_kZyHdF7b0fK7kDjlTwDw2rSo"
-      }
     },
     "android": {
       "adaptiveIcon": {
